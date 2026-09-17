@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { Cloud, Database, Zap, Terminal, Copy, Check, ExternalLink, Code2 } from 'lucide-react';
+import { Cloud, Database, Zap, Terminal, Copy, Check, ExternalLink, Code2, LayoutDashboard, Globe, KeyRound } from 'lucide-react';
 import { useUiStore } from '../../../stores/ui.store';
 import { uploadApi } from '../../../api/settings.api';
 
 export const CloudflareGuide: React.FC = () => {
   const { showToast } = useUiStore();
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cli'>('dashboard');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const copyToClipboard = (text: string, index: number) => {
+  const copyToClipboard = (text: string, key: string) => {
     navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    showToast('命令已复制到剪贴板', 'success');
-    setTimeout(() => setCopiedIndex(null), 2000);
+    setCopiedKey(key);
+    showToast('已复制到剪贴板', 'success');
+    setTimeout(() => setCopiedKey(null), 2000);
   };
 
-  const steps = [
+  const cliSteps = [
     {
       title: '步骤 1: 创建 Cloudflare D1 数据库与 KV 缓存空间',
       desc: '在本地终端中运行 Wrangler 命令创建 D1 实例与 KV 命名空间：',
@@ -39,6 +40,61 @@ export const CloudflareGuide: React.FC = () => {
       title: '步骤 5: 构建并发布 Cloudflare Pages 前端',
       desc: '构建前端并将 dist 静态产物发布至 Cloudflare Pages：',
       cmd: `npm run build\nnpx wrangler pages deploy dist --project-name=omnimark`,
+    },
+  ];
+
+  const dashboardSteps = [
+    {
+      step: '1',
+      title: '在控制面板创建 D1 数据库并执行建表 SQL',
+      items: [
+        '登录 Cloudflare 控制面板 (dash.cloudflare.com)。',
+        '左侧导航栏点击「存储与数据库 (Storage & Databases)」->「D1 SQL 数据库」。',
+        '点击「创建数据库 (Create Database)」，数据库名称输入「omnimark-db」，点击「创建」。',
+        '创建后点击进入该数据库，切换到顶部的「控制台 (Console)」标签页。',
+        '将项目 data/migrations/0001_init_d1.sql 中的 SQL 内容粘贴到控制台输入框，点击「执行 (Execute)」。所有表结构与默认数据即可初始化完成！',
+      ],
+      actionText: '下载初始 SQL 文件',
+      actionUrl: uploadApi.getExportD1SqlUrl(),
+    },
+    {
+      step: '2',
+      title: '在控制面板创建 KV 命名空间 (缓存加速)',
+      items: [
+        '在左侧导航栏点击「存储与数据库 (Storage & Databases)」->「KV」。',
+        '点击「创建命名空间 (Create a namespace)」。',
+        '命名空间名称填写「omnimark-cache」，点击「添加」。',
+      ],
+    },
+    {
+      step: '3',
+      title: '在控制面板创建 Worker 服务端并绑定 D1 / KV',
+      items: [
+        '在左侧导航栏点击「Workers 和 Pages (Workers & Pages)」->「概览 (Overview)」。',
+        '点击「创建应用程序 (Create application)」->「创建 Worker」，名称填写「omnimark-api」，点击「部署」。',
+        '部署后点击「编辑代码 (Edit code)」，将项目 cloudflare/worker.js 的全部代码复制粘贴进去，点击右上角「保存并部署 (Save and deploy)」。',
+        '回到该 Worker 详情页，点击「设置 (Settings)」->「变量与绑定 (Variables and Bindings)」：',
+        '① 添加 D1 数据库绑定：变量名称严格填写「DB」，选择刚刚创建的「omnimark-db」。',
+        '② 添加 KV 命名空间绑定：变量名称严格填写「CACHE_KV」，选择刚刚创建的「omnimark-cache」。',
+        '点击保存，你的 Worker 边缘后端即配置完成！你会获得一个形如 https://omnimark-api.your-name.workers.dev 的 API 域名。',
+      ],
+    },
+    {
+      step: '4',
+      title: '在控制面板创建 Cloudflare Pages 部署前端',
+      items: [
+        '在左侧导航栏点击「Workers 和 Pages」->「创建应用程序」-> 切换到「Pages」标签。',
+        '方案 A (推荐·Git 自动部署)：点击「连接到 Git」，选择包含本项目的 GitHub 仓库。构建预设选择「Vite」，构建命令输入「npm run build」，构建输出目录输入「dist」。环境变量中添加 VITE_API_URL 填写你的 Worker API 域名。点击「保存并部署」。',
+        '方案 B (无需 Git·拖拽直传)：在本地执行 npm run build，在 Pages 页面点击「上传资产 (Upload assets)」，将打包生成的 dist 文件夹直接拖入网页中即可瞬间完成发布！',
+      ],
+    },
+    {
+      step: '5',
+      title: '绑定自定义域名 (可选)',
+      items: [
+        '在 Pages 项目设置中点击「自定义域 (Custom Domains)」，输入你的独立域名 (如 nav.yourdomain.com)。',
+        '在 Worker 设置中也可绑定 API 子域名 (如 api-nav.yourdomain.com)，Cloudflare 会自动签发免费 SSL 证书并开启全球 CDN 加速。',
+      ],
     },
   ];
 
@@ -98,24 +154,95 @@ export const CloudflareGuide: React.FC = () => {
         </div>
       </div>
 
-      {/* Deployment steps */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-base font-bold text-zinc-900 dark:text-white">
-            部署步骤操作指南
-          </h4>
-          <a
-            href={uploadApi.getExportD1SqlUrl()}
-            download="omnimark-d1-migration.sql"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-sm transition-colors"
+      {/* Mode Switch Tabs */}
+      <div className="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-800 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'dashboard'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
           >
-            <Database className="w-3.5 h-3.5" />
-            <span>下载当前最新 D1 数据 SQL</span>
-          </a>
+            <LayoutDashboard className="w-3.5 h-3.5" />
+            <span>Cloudflare 控制面板网页部署 (可视化操作·零命令行)</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('cli')}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'cli'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span>Wrangler CLI 命令行部署</span>
+          </button>
         </div>
 
+        <a
+          href={uploadApi.getExportD1SqlUrl()}
+          download="omnimark-d1-migration.sql"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium shadow-sm transition-colors"
+        >
+          <Database className="w-3.5 h-3.5" />
+          <span>下载当前最新 D1 数据 SQL</span>
+        </a>
+      </div>
+
+      {/* Tab 1: Dashboard Guide */}
+      {activeTab === 'dashboard' && (
         <div className="space-y-4">
-          {steps.map((step, idx) => (
+          <div className="p-4 rounded-2xl bg-sky-50/80 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-900/40 text-xs text-sky-800 dark:text-sky-300 leading-relaxed">
+            <span className="font-bold">提示：</span> 通过 Cloudflare 网页控制面板部署无需配置复杂的 Node.js 或命令行工具，直接在浏览器中点选创建 D1、KV，并使用在线代码编辑器粘贴 Worker 代码即可上线！
+          </div>
+
+          <div className="space-y-4">
+            {dashboardSteps.map((s, idx) => (
+              <div
+                key={idx}
+                className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    {s.step}
+                  </div>
+                  <h5 className="text-sm font-bold text-zinc-900 dark:text-white">
+                    {s.title}
+                  </h5>
+                </div>
+
+                <ul className="space-y-2 text-xs text-zinc-600 dark:text-zinc-400 pl-10 list-disc">
+                  {s.items.map((item, iIdx) => (
+                    <li key={iIdx} className="leading-relaxed">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+
+                {s.actionText && s.actionUrl && (
+                  <div className="pl-10 pt-1">
+                    <a
+                      href={s.actionUrl}
+                      download="omnimark-d1-migration.sql"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors"
+                    >
+                      <Database className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{s.actionText}</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: CLI Guide */}
+      {activeTab === 'cli' && (
+        <div className="space-y-4">
+          {cliSteps.map((step, idx) => (
             <div
               key={idx}
               className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-2.5"
@@ -125,10 +252,10 @@ export const CloudflareGuide: React.FC = () => {
                   {step.title}
                 </h5>
                 <button
-                  onClick={() => copyToClipboard(step.cmd, idx)}
+                  onClick={() => copyToClipboard(step.cmd, `cli-${idx}`)}
                   className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 transition-colors cursor-pointer"
                 >
-                  {copiedIndex === idx ? (
+                  {copiedKey === `cli-${idx}` ? (
                     <>
                       <Check className="w-3 h-3 text-emerald-600" />
                       <span>已复制</span>
@@ -136,7 +263,7 @@ export const CloudflareGuide: React.FC = () => {
                   ) : (
                     <>
                       <Copy className="w-3 h-3" />
-                      <span>复制</span>
+                      <span>复制命令</span>
                     </>
                   )}
                 </button>
@@ -152,7 +279,8 @@ export const CloudflareGuide: React.FC = () => {
             </div>
           ))}
         </div>
-      </div>
+      )}
     </div>
   );
 };
+
