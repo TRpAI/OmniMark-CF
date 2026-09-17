@@ -1,0 +1,258 @@
+{
+  "users": [
+    {
+      "id": "usr-admin-1",
+      "username": "admin",
+      "passwordHash": "c6218d6a8b7921dc8074d283626e2e58:36cb68205f31952a20f92b7c6c449c4d98939c3e98f4806a7f53f93ce0d2bf5538e12ec68285514f7b6b23b3f2f81944883907e15fe2b70fcfbc5c477960d70a",
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "sessions": [],
+  "categories": [
+    {
+      "id": "cat-featured",
+      "name": "精选常用",
+      "icon": "Sparkles",
+      "sortOrder": 1,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "cat-dev",
+      "name": "开发编程",
+      "icon": "Code",
+      "sortOrder": 2,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "cat-ai",
+      "name": "AI 人工智能",
+      "icon": "Cpu",
+      "sortOrder": 3,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "cat-design",
+      "name": "设计与素材",
+      "icon": "Palette",
+      "sortOrder": 4,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "cat-cloud",
+      "name": "云与基础设施",
+      "icon": "Cloud",
+      "sortOrder": 5,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "cat-tools",
+      "name": "效率工具",
+      "icon": "Wrench",
+      "sortOrder": 6,
+      "createdAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "bookmarks": [
+    {
+      "id": "bm-github",
+      "categoryId": "cat-dev",
+      "title": "GitHub",
+      "url": "https://github.com",
+      "description": "全球领先的开源代码托管与协作平台",
+      "favicon": "https://github.githubassets.com/favicons/favicon.png",
+      "tags": ["Git", "开源", "协作"],
+      "clickCount": 142,
+      "sortOrder": 1,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-cloudflare",
+      "categoryId": "cat-cloud",
+      "title": "Cloudflare 控制台",
+      "url": "https://dash.cloudflare.com",
+      "description": "全球 CDN、D1 数据库、Workers 边缘计算及 DNS 服务",
+      "favicon": "https://dash.cloudflare.com/favicon.ico",
+      "tags": ["CDN", "Workers", "D1", "边缘计算"],
+      "clickCount": 98,
+      "sortOrder": 1,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-chatgpt",
+      "categoryId": "cat-ai",
+      "title": "ChatGPT",
+      "url": "https://chatgpt.com",
+      "description": "OpenAI 强大的大语言模型对话与创作助手",
+      "favicon": "https://chatgpt.com/favicon.ico",
+      "tags": ["AI", "LLM", "生产力"],
+      "clickCount": 176,
+      "sortOrder": 1,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-claude",
+      "categoryId": "cat-ai",
+      "title": "Claude",
+      "url": "https://claude.ai",
+      "description": "Anthropic 具备强大推理和代码编写能力的 AI",
+      "favicon": "https://claude.ai/favicon.ico",
+      "tags": ["AI", "Anthropic", "编程"],
+      "clickCount": 120,
+      "sortOrder": 2,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-v2ex",
+      "categoryId": "cat-featured",
+      "title": "V2EX",
+      "url": "https://www.v2ex.com",
+      "description": "一个关于创意、技术与生活方式的极客交流社区",
+      "favicon": "https://www.v2ex.com/favicon.ico",
+      "tags": ["社区", "极客", "交流"],
+      "clickCount": 85,
+      "sortOrder": 2,
+      "isPinned": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-npm",
+      "categoryId": "cat-dev",
+      "title": "NPM Registry",
+      "url": "https://www.npmjs.com",
+      "description": "Node.js 官方模块与包管理器仓库",
+      "favicon": "https://static-production.npmjs.com/b0f1a83180f6814b33ab.png",
+      "tags": ["Node", "Package", "JavaScript"],
+      "clickCount": 64,
+      "sortOrder": 2,
+      "isPinned": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-figma",
+      "categoryId": "cat-design",
+      "title": "Figma",
+      "url": "https://www.figma.com",
+      "description": "行业标杆级协作式 UI/UX 界面设计工具",
+      "favicon": "https://static.figma.com/app/icon/1/favicon.png",
+      "tags": ["设计", "UI/UX", "原型"],
+      "clickCount": 93,
+      "sortOrder": 1,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-canva",
+      "categoryId": "cat-design",
+      "title": "Canva 可画",
+      "url": "https://www.canva.com",
+      "description": "简单快速的在线多媒体排版与平面设计工具",
+      "favicon": "https://www.canva.com/favicon.ico",
+      "tags": ["平面设计", "海报", "模板"],
+      "clickCount": 42,
+      "sortOrder": 2,
+      "isPinned": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-tail",
+      "categoryId": "cat-dev",
+      "title": "Tailwind CSS",
+      "url": "https://tailwindcss.com",
+      "description": "实用优先的现代化 CSS 框架与设计系统",
+      "favicon": "https://tailwindcss.com/favicons/favicon.ico",
+      "tags": ["CSS", "前端", "样式"],
+      "clickCount": 110,
+      "sortOrder": 3,
+      "isPinned": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-huggingface",
+      "categoryId": "cat-ai",
+      "title": "Hugging Face",
+      "url": "https://huggingface.co",
+      "description": "开源 AI 模型、数据集与演示应用的全球中心",
+      "favicon": "https://huggingface.co/front/assets/huggingface_logo-noborder.svg",
+      "tags": ["开源模型", "AI", "NLP"],
+      "clickCount": 77,
+      "sortOrder": 3,
+      "isPinned": false,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "bm-notion",
+      "categoryId": "cat-tools",
+      "title": "Notion",
+      "url": "https://www.notion.so",
+      "description": "集笔记、任务管理、知识库一体的协作工作区",
+      "favicon": "https://www.notion.so/images/favicon.ico",
+      "tags": ["笔记", "知识库", "项目管理"],
+      "clickCount": 105,
+      "sortOrder": 1,
+      "isPinned": true,
+      "createdAt": "2025-01-01T00:00:00.000Z",
+      "updatedAt": "2025-01-01T00:00:00.000Z"
+    }
+  ],
+  "settings": {
+    "title": "OmniMark 导航",
+    "subtitle": "现代、快速、可迁移的极简书签与网址导航中心",
+    "logoText": "OmniMark",
+    "footerText": "Powered by OmniMark · Cloudflare Pages + Workers + D1 Ready",
+    "announcement": "欢迎使用 OmniMark！可自由切换分类与搜索引擎，登录管理后台可导入导出及同步 Cloudflare D1。",
+    "enableClickCounter": true,
+    "enablePinnedSection": true,
+    "searchEngines": [
+      {
+        "id": "google",
+        "name": "Google",
+        "placeholder": "在 Google 中搜索或直接过滤本地书签...",
+        "searchUrl": "https://www.google.com/search?q=",
+        "icon": "Globe"
+      },
+      {
+        "id": "baidu",
+        "name": "百度",
+        "placeholder": "在百度中搜索...",
+        "searchUrl": "https://www.baidu.com/s?wd=",
+        "icon": "Search"
+      },
+      {
+        "id": "bing",
+        "name": "必应",
+        "placeholder": "在 Bing 中搜索...",
+        "searchUrl": "https://www.bing.com/search?q=",
+        "icon": "Compass"
+      },
+      {
+        "id": "github",
+        "name": "GitHub",
+        "placeholder": "在 GitHub 仓库中搜索...",
+        "searchUrl": "https://github.com/search?q=",
+        "icon": "Github"
+      },
+      {
+        "id": "duckduckgo",
+        "name": "DuckDuckGo",
+        "placeholder": "在 DuckDuckGo 中搜索...",
+        "searchUrl": "https://duckduckgo.com/?q=",
+        "icon": "Shield"
+      }
+    ],
+    "defaultSearchEngineId": "google"
+  }
+}

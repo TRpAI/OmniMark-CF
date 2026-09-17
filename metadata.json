@@ -1,0 +1,6 @@
+{
+  "name": "OmniMark",
+  "description": "Modern bookmark navigation and site directory system with modular architecture, Cloudflare D1/KV support, and administration management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

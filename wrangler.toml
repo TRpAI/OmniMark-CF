@@ -1,0 +1,17 @@
+name = "omnimark-backend"
+main = "cloudflare/worker.ts"
+compatibility_date = "2024-09-01"
+
+# D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "omnimark-db"
+database_id = "your-d1-database-uuid"
+
+# KV Namespace Binding for Cache Acceleration
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "your-kv-namespace-id"
+
+[vars]
+ENVIRONMENT = "production"
