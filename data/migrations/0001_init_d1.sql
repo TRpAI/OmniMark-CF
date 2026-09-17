@@ -73,4 +73,4 @@ INSERT OR IGNORE INTO categories (id, name, icon, sortOrder, createdAt) VALUES
 
 -- Initial Default Admin (admin / admin123)
 INSERT OR IGNORE INTO users (id, username, passwordHash, createdAt) VALUES
-('usr-admin-1', 'admin', 'c6218d6a8b7921dc8074d283626e2e58:36cb68205f31952a20f92b7c6c449c4d98939c3e98f4806a7f53f93ce0d2bf5538e12ec68285514f7b6b23b3f2f81944883907e15fe2b70fcfbc5c477960d70a', datetime('now'));
+('usr-admin-1', 'admin', 'c6218d6a8b7921dc8074d283626e2e58:145cf4dd18dcf1d02828ad97289c586155c60c4e63df8164418f148c277aa2a887a62d400a973fed6b1f0ac0b5d6382d6303434b465cb52dec14810d88e27918', datetime('now'));

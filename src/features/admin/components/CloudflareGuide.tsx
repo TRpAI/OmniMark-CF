@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Cloud, Database, Zap, Terminal, Copy, Check, ExternalLink, Code2, LayoutDashboard, Globe, KeyRound } from 'lucide-react';
+import { Cloud, Database, Zap, Terminal, Copy, Check, ExternalLink, Code2, LayoutDashboard, Globe, KeyRound, GitBranch } from 'lucide-react';
 import { useUiStore } from '../../../stores/ui.store';
 import { uploadApi } from '../../../api/settings.api';
 
 export const CloudflareGuide: React.FC = () => {
   const { showToast } = useUiStore();
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'cli'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'cli' | 'actions'>('dashboard');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const copyToClipboard = (text: string, key: string) => {
@@ -177,7 +177,18 @@ export const CloudflareGuide: React.FC = () => {
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
-            <span>Wrangler CLI 命令行部署</span>
+            <span>Wrangler CLI 本地部署</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('actions')}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              activeTab === 'actions'
+                ? 'bg-amber-500 text-white shadow-sm'
+                : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5" />
+            <span>GitHub Actions 自动部署 (推荐)</span>
           </button>
         </div>
 
@@ -278,6 +289,65 @@ export const CloudflareGuide: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Tab 3: GitHub Actions CI/CD Guide */}
+      {activeTab === 'actions' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+            <span className="font-bold">全自动化上线：</span> 项目已内置完整 <code className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/50 font-mono font-bold">.github/workflows/deploy.yml</code>。只需在 GitHub 仓库中配置好 2 个 Cloudflare 密钥，之后每次 <code className="font-mono">git push</code>，GitHub 就会自动部署 Worker 后端和 Pages 前端，再也无需人工登录手动操作！
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+            <h5 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-amber-500" />
+              <span>步骤 1: 在 GitHub 仓库添加 Cloudflare Secrets</span>
+            </h5>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              打开你的 GitHub 仓库 ➔ <strong>Settings</strong> ➔ <strong>Secrets and variables</strong> ➔ <strong>Actions</strong> ➔ 点击 <strong>New repository secret</strong> 添加以下两项：
+            </p>
+            <div className="space-y-2 text-xs">
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700">
+                <div className="font-mono font-bold text-zinc-900 dark:text-white">CLOUDFLARE_API_TOKEN</div>
+                <div className="text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  获取方式：登录 Cloudflare ➔ 右上角头像「我的个人资料」➔「API 令牌 (API Tokens)」➔「创建令牌」➔ 选择「编辑 Cloudflare Workers」模板创建并复制 Token。
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700">
+                <div className="font-mono font-bold text-zinc-900 dark:text-white">CLOUDFLARE_ACCOUNT_ID</div>
+                <div className="text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  获取方式：Cloudflare 控制面板任意页面右下角或 Workers 概览页右侧即可看到 32 位「账户 ID (Account ID)」。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-3">
+            <h5 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+              <Zap className="w-4 h-4 text-sky-500" />
+              <span>步骤 2: 确认 wrangler.toml 中的 D1 数据库 UUID</span>
+            </h5>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              确保项目根目录的 <code className="px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">wrangler.toml</code> 里的 <code className="font-mono">database_id</code> 已填入你实际创建的 D1 数据库 UUID（在控制台 D1 详情页可查看）。
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-3">
+            <h5 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+              <GitBranch className="w-4 h-4 text-emerald-500" />
+              <span>步骤 3: 提交代码，自动触发构建发布</span>
+            </h5>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              在本地或 GitHub 执行提交：
+            </p>
+            <div className="p-3 rounded-xl bg-zinc-950 text-zinc-200 font-mono text-xs overflow-x-auto">
+              <pre>{`git add .\ngit commit -m "feat: auto deploy to cloudflare"\ngit push origin main`}</pre>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              随后进入 GitHub 仓库顶部的 <strong>Actions</strong> 标签页，即可看到绿色流水线自动将 Worker 与 Pages 部署至全球边缘！
+            </p>
+          </div>
         </div>
       )}
     </div>
