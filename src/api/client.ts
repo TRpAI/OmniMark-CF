@@ -68,53 +68,72 @@ class ApiClient {
     return headers;
   }
 
-  async get<T>(path: string, params?: Record<string, any>): Promise<T> {
-    let url = `${this.baseUrl}${path}`;
-    if (params) {
-      const searchParams = new URLSearchParams();
-      Object.entries(params).forEach(([key, val]) => {
-        if (val !== undefined && val !== null) {
-          searchParams.append(key, String(val));
-        }
-      });
-      const queryString = searchParams.toString();
-      if (queryString) {
-        url += (url.includes('?') ? '&' : '?') + queryString;
+  private async requestWithCatch<T>(fn: () => Promise<T>): Promise<T> {
+    try {
+      return await fn();
+    } catch (err: any) {
+      if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
+        throw new Error(`无法连接 API 服务 (${this.baseUrl})。如果是 Cloudflare 独立部署，请检查域名填写或跨域 (CORS) 设置。`);
       }
+      throw err;
     }
+  }
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: this.getHeaders(),
+  async get<T>(path: string, params?: Record<string, any>): Promise<T> {
+    return this.requestWithCatch(async () => {
+      let url = `${this.baseUrl}${path}`;
+      if (params) {
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, val]) => {
+          if (val !== undefined && val !== null) {
+            searchParams.append(key, String(val));
+          }
+        });
+        const queryString = searchParams.toString();
+        if (queryString) {
+          url += (url.includes('?') ? '&' : '?') + queryString;
+        }
+      }
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: this.getHeaders(),
+      });
+
+      return this.handleResponse<T>(res);
     });
-
-    return this.handleResponse<T>(res);
   }
 
   async post<T>(path: string, body?: any): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: body ? JSON.stringify(body) : undefined,
+    return this.requestWithCatch(async () => {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return this.handleResponse<T>(res);
     });
-    return this.handleResponse<T>(res);
   }
 
   async put<T>(path: string, body?: any): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: body ? JSON.stringify(body) : undefined,
+    return this.requestWithCatch(async () => {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return this.handleResponse<T>(res);
     });
-    return this.handleResponse<T>(res);
   }
 
   async delete<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
-      method: 'DELETE',
-      headers: this.getHeaders(),
+    return this.requestWithCatch(async () => {
+      const res = await fetch(`${this.baseUrl}${path}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+      });
+      return this.handleResponse<T>(res);
     });
-    return this.handleResponse<T>(res);
   }
 
   private async handleResponse<T>(res: Response): Promise<T> {

@@ -23,10 +23,10 @@ export const CategoryTabs: React.FC = () => {
           <Layers className="w-4 h-4" />
           <span>全部书签</span>
           <span
-            className={`text-xs px-1.5 py-0.2 rounded-full ${
+            className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
               activeCategoryId === 'all'
                 ? 'bg-white/20 text-white'
-                : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
             }`}
           >
             {totalCount}
@@ -36,7 +36,9 @@ export const CategoryTabs: React.FC = () => {
         {/* Categories Tabs */}
         {categories.map((cat) => {
           const isActive = activeCategoryId === cat.id;
-          const count = cat.count !== undefined ? cat.count : bookmarks.filter((b) => b.categoryId === cat.id).length;
+          // 计算当前分类下实际的书签数量（优先通过已加载的 bookmarks 进行动态实时计算）
+          const actualCount = bookmarks.filter((b) => b.categoryId === cat.id).length;
+          const displayCount = actualCount > 0 ? actualCount : (cat.count || 0);
 
           return (
             <button
@@ -51,13 +53,13 @@ export const CategoryTabs: React.FC = () => {
               {renderCategoryIcon(cat.icon, 'w-4 h-4')}
               <span>{cat.name}</span>
               <span
-                className={`text-xs px-1.5 py-0.2 rounded-full ${
+                className={`text-xs px-2 py-0.5 rounded-full font-mono font-medium ${
                   isActive
                     ? 'bg-white/20 text-white'
-                    : 'bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
+                    : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
                 }`}
               >
-                {count}
+                {displayCount}
               </span>
             </button>
           );
