@@ -1,9 +1,39 @@
 import { ApiResponse } from '../../packages/shared/types';
 
 const TOKEN_STORAGE_KEY = 'omnimark_token';
+const API_URL_STORAGE_KEY = 'omnimark_api_url';
 
 class ApiClient {
-  private baseUrl: string = '/api';
+  private baseUrl: string;
+
+  constructor() {
+    let url = '/api';
+    try {
+      const saved = localStorage.getItem(API_URL_STORAGE_KEY);
+      if (saved) {
+        url = saved;
+      } else if (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_API_URL) {
+        url = (import.meta as any).env.VITE_API_URL;
+      }
+    } catch {}
+    this.baseUrl = url.replace(/\/+$/, '');
+  }
+
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  public setBaseUrl(url: string): void {
+    const cleaned = (url || '/api').trim().replace(/\/+$/, '');
+    this.baseUrl = cleaned;
+    try {
+      if (cleaned && cleaned !== '/api') {
+        localStorage.setItem(API_URL_STORAGE_KEY, cleaned);
+      } else {
+        localStorage.removeItem(API_URL_STORAGE_KEY);
+      }
+    } catch {}
+  }
 
   public getToken(): string | null {
     try {

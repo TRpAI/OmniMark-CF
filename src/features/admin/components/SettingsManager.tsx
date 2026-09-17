@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Save, Plus, Trash2, Search, Check, RefreshCw } from 'lucide-react';
+import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { SearchEngine } from '../../../../packages/shared/types';
+import { apiClient } from '../../../api/client';
 
 export const SettingsManager: React.FC = () => {
-  const { settings, updateSettings } = useBookmarkStore();
+  const { settings, updateSettings, loadInitialData } = useBookmarkStore();
   const { showToast } = useUiStore();
 
+  const [apiUrl, setApiUrl] = useState(apiClient.getBaseUrl());
   const [formData, setFormData] = useState({
     title: settings.title || 'OmniMark 站点导航',
     subtitle: settings.subtitle || '高效、清爽、可自建的现代书签与导航系统',
@@ -151,6 +153,48 @@ export const SettingsManager: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
               className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
             />
+          </div>
+        </div>
+
+        {/* Backend API Endpoint Config */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Server className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                后端 API 节点配置 (Cloudflare Worker)
+              </h4>
+            </div>
+            <span className="text-xs text-zinc-400">分离部署时使用</span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+              API Base URL
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={apiUrl}
+                onChange={(e) => setApiUrl(e.target.value)}
+                placeholder="默认为 /api ，若为独立 Worker 请填入例如 https://omnimark-api.workers.dev"
+                className="flex-1 px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  apiClient.setBaseUrl(apiUrl);
+                  loadInitialData();
+                  showToast('API 节点地址已更新并尝试重新拉取数据', 'success');
+                }}
+                className="px-4 py-2 text-xs font-medium rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors cursor-pointer"
+              >
+                应用并测试
+              </button>
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+              单体部署时保持默认 <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">/api</code> 即可；若将前端部署在 Cloudflare Pages、后端部署在 Cloudflare Workers，可在此填入 Worker 的公网 URL。
+            </p>
           </div>
         </div>
 

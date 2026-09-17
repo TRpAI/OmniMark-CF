@@ -3,7 +3,7 @@ import { Bookmark, Category, SiteSettings, StatsData } from '../../packages/shar
 import { bookmarkApi } from '../api/bookmark.api';
 import { categoryApi } from '../api/category.api';
 import { settingsApi } from '../api/settings.api';
-import { DEFAULT_SETTINGS } from '../../packages/shared/constants';
+import { DEFAULT_SETTINGS, INITIAL_BOOKMARKS, INITIAL_CATEGORIES } from '../../packages/shared/constants';
 
 interface BookmarkState {
   bookmarks: Bookmark[];
@@ -39,8 +39,8 @@ interface BookmarkState {
 }
 
 export const useBookmarkStore = create<BookmarkState>((set, get) => ({
-  bookmarks: [],
-  categories: [],
+  bookmarks: INITIAL_BOOKMARKS,
+  categories: INITIAL_CATEGORIES,
   settings: DEFAULT_SETTINGS,
   stats: null,
   activeCategoryId: 'all',
@@ -50,24 +50,24 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   error: null,
 
   loadInitialData: async () => {
-    set({ isLoading: true, error: null });
     try {
       const [bookmarks, categories, settings] = await Promise.all([
-        bookmarkApi.list(),
-        categoryApi.list(),
-        settingsApi.getSettings().catch(() => DEFAULT_SETTINGS),
+        bookmarkApi.list().catch(() => null),
+        categoryApi.list().catch(() => null),
+        settingsApi.getSettings().catch(() => null),
       ]);
 
       set({
-        bookmarks,
-        categories,
-        settings,
-        selectedEngineId: settings.defaultSearchEngineId || 'google',
+        bookmarks: bookmarks && bookmarks.length > 0 ? bookmarks : get().bookmarks,
+        categories: categories && categories.length > 0 ? categories : get().categories,
+        settings: settings || get().settings,
+        selectedEngineId: (settings && settings.defaultSearchEngineId) || get().selectedEngineId,
         isLoading: false,
+        error: null,
       });
     } catch (err: any) {
-      console.error('Failed to load initial data:', err);
-      set({ error: err.message, isLoading: false });
+      console.warn('Failed to load initial data from server, retaining local data:', err);
+      set({ isLoading: false });
     }
   },
 
