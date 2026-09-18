@@ -7,6 +7,9 @@ import settingsRoutes from './routes/settings.routes';
 import uploadRoutes from './routes/upload.routes';
 import { securityHeaders } from './middleware/security.middleware';
 
+import { bookmarkRepository } from './repositories/bookmark.repository';
+import { categoryRepository } from './repositories/category.repository';
+
 const app = express();
 
 // Middlewares
@@ -15,9 +18,38 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(securityHeaders);
 
-// Health check
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'OmniMark API', timestamp: new Date().toISOString() });
+// Health check with data persistence verification
+app.get('/api/health', async (req: Request, res: Response) => {
+  try {
+    const [bookmarks, categories] = await Promise.all([
+      bookmarkRepository.findAll(),
+      categoryRepository.findAll(),
+    ]);
+
+    res.json({
+      status: 'ok',
+      service: 'OmniMark API',
+      version: '2.0.0',
+      uptime: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      storage: {
+        status: 'healthy',
+        bookmarksCount: bookmarks.length,
+        categoriesCount: categories.length,
+      },
+      security: {
+        authMode: 'single-user',
+        passwordAlgorithm: 'PBKDF2-HMAC-SHA512 (210,000 iterations)',
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      status: 'degraded',
+      service: 'OmniMark API',
+      timestamp: new Date().toISOString(),
+      error: 'Storage read verification failed: ' + (err?.message || 'unknown error'),
+    });
+  }
 });
 
 // API Routes

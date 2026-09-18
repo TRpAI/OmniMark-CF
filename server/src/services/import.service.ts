@@ -7,12 +7,13 @@ import { faviconService } from './favicon.service';
 export interface ImportResult {
   categoriesAdded: number;
   bookmarksAdded: number;
+  duplicatesSkipped: number;
   errors: string[];
 }
 
 export class ImportService {
   async importJson(jsonData: any, overwrite = false): Promise<ImportResult> {
-    const result: ImportResult = { categoriesAdded: 0, bookmarksAdded: 0, errors: [] };
+    const result: ImportResult = { categoriesAdded: 0, bookmarksAdded: 0, duplicatesSkipped: 0, errors: [] };
 
     if (!jsonData || typeof jsonData !== 'object') {
       throw new Error('无效的 JSON 导入数据');
@@ -26,6 +27,9 @@ export class ImportService {
     const currentCategories = await categoryRepository.findAll();
     const categoryNameMap = new Map<string, string>();
     currentCategories.forEach((c) => categoryNameMap.set(c.name.toLowerCase(), c.id));
+
+    const existingBookmarks = await bookmarkRepository.findAll();
+    const existingUrls = new Set(existingBookmarks.map((b) => b.url.toLowerCase().trim().replace(/\/+$/, '')));
 
     // Import Categories
     if (Array.isArray(jsonData.categories)) {
@@ -57,6 +61,12 @@ export class ImportService {
       for (const b of jsonData.bookmarks) {
         if (!b.title || !b.url) continue;
 
+        const cleanUrl = b.url.toLowerCase().trim().replace(/\/+$/, '');
+        if (existingUrls.has(cleanUrl)) {
+          result.duplicatesSkipped++;
+          continue;
+        }
+
         let categoryId = b.categoryId;
         if (!categoryId || !(await categoryRepository.findById(categoryId))) {
           categoryId = defaultCatId;
@@ -78,6 +88,7 @@ export class ImportService {
         };
 
         await bookmarkRepository.insert(newBookmark);
+        existingUrls.add(cleanUrl);
         result.bookmarksAdded++;
       }
     }
@@ -86,14 +97,16 @@ export class ImportService {
   }
 
   async importHtmlBookmarks(htmlContent: string): Promise<ImportResult> {
-    const result: ImportResult = { categoriesAdded: 0, bookmarksAdded: 0, errors: [] };
+    const result: ImportResult = { categoriesAdded: 0, bookmarksAdded: 0, duplicatesSkipped: 0, errors: [] };
 
     let currentCategoryName = '导入书签';
     const categories = await categoryRepository.findAll();
     const categoryMap = new Map<string, string>();
     categories.forEach((c) => categoryMap.set(c.name.toLowerCase(), c.id));
 
-    // Regex to scan headings and links
+    const existingBookmarks = await bookmarkRepository.findAll();
+    const existingUrls = new Set(existingBookmarks.map((b) => b.url.toLowerCase().trim().replace(/\/+$/, '')));
+
     const lines = htmlContent.split('\n');
 
     for (const line of lines) {
@@ -112,6 +125,12 @@ export class ImportService {
 
         // Skip non-http URLs like place: or javascript:
         if (!/^https?:\/\//i.test(url)) {
+          continue;
+        }
+
+        const cleanUrl = url.toLowerCase().trim().replace(/\/+$/, '');
+        if (existingUrls.has(cleanUrl)) {
+          result.duplicatesSkipped++;
           continue;
         }
 
@@ -151,6 +170,7 @@ export class ImportService {
         };
 
         await bookmarkRepository.insert(newBookmark);
+        existingUrls.add(cleanUrl);
         result.bookmarksAdded++;
       }
     }

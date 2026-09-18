@@ -9,18 +9,40 @@ export const BookmarkGrid: React.FC = () => {
   const { bookmarks, categories, activeCategoryId, searchQuery, settings, setSearchQuery, setActiveCategory } =
     useBookmarkStore();
 
-  // Filter bookmarks
+  // Filter & Rank bookmarks
   const query = searchQuery.toLowerCase().trim();
 
   let filtered = bookmarks;
   if (query) {
-    filtered = filtered.filter(
-      (b) =>
-        b.title.toLowerCase().includes(query) ||
-        b.description?.toLowerCase().includes(query) ||
-        b.url.toLowerCase().includes(query) ||
-        b.tags.some((t) => t.toLowerCase().includes(query))
-    );
+    const scored = bookmarks
+      .map((b) => {
+        let score = 0;
+        const titleLower = b.title.toLowerCase();
+        const descLower = (b.description || '').toLowerCase();
+        const urlLower = b.url.toLowerCase();
+        const tags = b.tags || [];
+
+        // 1. 标题匹配 (最高权重 100+)
+        if (titleLower === query) score += 200;
+        else if (titleLower.startsWith(query)) score += 150;
+        else if (titleLower.includes(query)) score += 100;
+
+        // 2. 标签匹配 (高权重 60+)
+        if (tags.some((t) => t.toLowerCase() === query)) score += 80;
+        else if (tags.some((t) => t.toLowerCase().includes(query))) score += 60;
+
+        // 3. 描述匹配 (中等权重 30+)
+        if (descLower.includes(query)) score += 30;
+
+        // 4. 网址匹配 (低权重 10+)
+        if (urlLower.includes(query)) score += 10;
+
+        return { bookmark: b, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score);
+
+    filtered = scored.map((item) => item.bookmark);
   }
 
   // If specific category is selected

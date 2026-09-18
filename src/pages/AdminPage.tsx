@@ -34,7 +34,7 @@ export const AdminPage: React.FC = () => {
     { id: 'dashboard', label: '控制面板', icon: LayoutDashboard },
     { id: 'bookmarks', label: '书签管理', icon: Bookmark },
     { id: 'categories', label: '分类管理', icon: Folder },
-    { id: 'users', label: '账户安全', icon: Users },
+    { id: 'users', label: '安全与密码', icon: Shield },
     { id: 'import-export', label: '导入与备份', icon: FileCode2 },
     { id: 'cloudflare', label: 'Cloudflare 部署', icon: Cloud, badge: 'D1/KV' },
     { id: 'settings', label: '全局设置', icon: Settings },

@@ -5,6 +5,8 @@ import { apiClient } from '../api/client';
 interface UserInfo {
   id: string;
   username: string;
+  createdAt?: string;
+  isDefaultPassword?: boolean;
 }
 
 interface AuthState {
@@ -13,7 +15,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (password: string, username?: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   clearError: () => void;
@@ -26,10 +28,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: false,
   error: null,
 
-  login: async (username, password) => {
+  login: async (password: string, username = 'admin') => {
     set({ isLoading: true, error: null });
     try {
-      const res = await authApi.login(username, password);
+      const res = await authApi.login(password, username);
       apiClient.setToken(res.token);
       set({
         user: res.user,
@@ -42,7 +44,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err: any) {
       set({
         isLoading: false,
-        error: err.message || '登录失败，请检查账号密码',
+        error: err.message || '管理密码验证失败，请重新输入',
       });
       return false;
     }

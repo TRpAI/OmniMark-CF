@@ -12,15 +12,17 @@ function generateId(prefix = 'id') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 7)}`;
 }
 
-// 辅助函数：PBKDF2 密码校验 (兼容 Node pbkdf2Sync 格式 salt:hash)
+// 辅助函数：PBKDF2 密码校验 (使用 OWASP 推荐的 210,000 次 PBKDF2-HMAC-SHA512 迭代，无明文 fallback)
 async function verifyPassword(password, storedHash) {
   try {
-    if (!storedHash) return false;
-    // 明文比对兜底
-    if (!storedHash.includes(':')) {
-      return password === storedHash;
+    if (!storedHash || typeof storedHash !== 'string' || !storedHash.includes(':')) {
+      // 严格安全规则：无冒号分隔的非法格式或明文一律拒绝
+      return false;
     }
-    const [salt, originalHex] = storedHash.split(':');
+    const parts = storedHash.split(':');
+    if (parts.length !== 2) return false;
+    const [salt, originalHex] = parts;
+
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -30,31 +32,42 @@ async function verifyPassword(password, storedHash) {
       ['deriveBits']
     );
 
-    // 尝试以 UTF-8 字符串编码的 salt 计算 (标准 Node pbkdf2Sync(pw, saltStr, ...))
+    // 1. 优先校验 210,000 次 (新标准)
     const utf8Salt = enc.encode(salt);
-    const bitsUtf8 = await crypto.subtle.deriveBits(
+    const bits210k = await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: utf8Salt, iterations: 210000, hash: 'SHA-512' },
+      keyMaterial,
+      64 * 8
+    );
+    const hex210k = Array.from(new Uint8Array(bits210k))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    if (hex210k === originalHex) return true;
+
+    // 2. 兼容 Hex 字节盐 (210,000 次)
+    if (salt.length % 2 === 0) {
+      const saltBytes = new Uint8Array(salt.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+      const bitsHex210k = await crypto.subtle.deriveBits(
+        { name: 'PBKDF2', salt: saltBytes, iterations: 210000, hash: 'SHA-512' },
+        keyMaterial,
+        64 * 8
+      );
+      const hexRaw210k = Array.from(new Uint8Array(bitsHex210k))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      if (hexRaw210k === originalHex) return true;
+    }
+
+    // 3. 平滑升级兼容：尝试旧的 10,000 次迭代 (校验通过后供上层异步升级成 210k)
+    const bits10k = await crypto.subtle.deriveBits(
       { name: 'PBKDF2', salt: utf8Salt, iterations: 10000, hash: 'SHA-512' },
       keyMaterial,
       64 * 8
     );
-    const hexUtf8 = Array.from(new Uint8Array(bitsUtf8))
+    const hex10k = Array.from(new Uint8Array(bits10k))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    if (hexUtf8 === originalHex) return true;
-
-    // 尝试以 Hex 字节流的 salt 计算
-    if (salt.length % 2 === 0) {
-      const saltBytes = new Uint8Array(salt.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-      const bitsHex = await crypto.subtle.deriveBits(
-        { name: 'PBKDF2', salt: saltBytes, iterations: 10000, hash: 'SHA-512' },
-        keyMaterial,
-        64 * 8
-      );
-      const hexRaw = Array.from(new Uint8Array(bitsHex))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
-      if (hexRaw === originalHex) return true;
-    }
+    if (hex10k === originalHex) return true;
 
     return false;
   } catch (err) {
@@ -63,7 +76,7 @@ async function verifyPassword(password, storedHash) {
   }
 }
 
-// 辅助函数：创建密码 Hash
+// 辅助函数：创建高强度密码 Hash (210,000 次 PBKDF2-HMAC-SHA512)
 async function hashPassword(password) {
   const saltBytes = new Uint8Array(16);
   crypto.getRandomValues(saltBytes);
@@ -82,7 +95,7 @@ async function hashPassword(password) {
     {
       name: 'PBKDF2',
       salt: enc.encode(saltHex),
-      iterations: 10000,
+      iterations: 210000,
       hash: 'SHA-512',
     },
     keyMaterial,
@@ -103,11 +116,28 @@ async function sha256(text) {
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 内存级 IP 频率限制器（防暴力破解）
+const ipRateLimitMap = new Map();
+function checkRateLimit(ip, maxRequests = 5, windowMs = 60000) {
+  const now = Date.now();
+  const record = ipRateLimitMap.get(ip);
+  if (!record || now > record.resetTime) {
+    ipRateLimitMap.set(ip, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  if (record.count >= maxRequests) {
+    return false;
+  }
+  record.count++;
+  return true;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const rawPath = url.pathname;
     const method = request.method;
+    const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'edge-client';
 
     // CORS 跨域预检
     if (method === 'OPTIONS') {
@@ -123,6 +153,10 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Content-Type': 'application/json; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'SAMEORIGIN',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
     // 路径标准化：同时兼容 /api/... 和 /... 两种请求格式
@@ -164,50 +198,83 @@ export default {
 
     try {
       // -------------------------------------------------------------
-      // 1. 服务探活接口
+      // 1. 服务探活与存储一致性检查接口
       // -------------------------------------------------------------
       if (path === '/health' && method === 'GET') {
-        return json({
-          status: 'ok',
-          service: 'OmniMark Cloudflare Edge Worker',
-          runtime: 'Cloudflare Workers (D1 + KV)',
-          timestamp: new Date().toISOString(),
-        });
+        try {
+          const [catCountRow, bmCountRow] = await Promise.all([
+            env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
+            env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
+          ]);
+
+          return json({
+            status: 'ok',
+            service: 'OmniMark Cloudflare Edge Worker',
+            runtime: 'Cloudflare Workers (D1 + KV)',
+            version: '2.0.0',
+            timestamp: new Date().toISOString(),
+            storage: {
+              status: 'healthy',
+              categoriesCount: catCountRow?.count || 0,
+              bookmarksCount: bmCountRow?.count || 0,
+            },
+            security: {
+              authMode: 'single-user',
+              passwordAlgorithm: 'PBKDF2-HMAC-SHA512 (210,000 iterations)',
+            },
+          });
+        } catch (dbErr) {
+          return json({
+            status: 'degraded',
+            service: 'OmniMark Cloudflare Edge Worker',
+            error: 'Storage read check failed: ' + (dbErr?.message || 'unknown error'),
+            timestamp: new Date().toISOString(),
+          }, 500);
+        }
       }
 
       // -------------------------------------------------------------
       // 2. 身份认证与用户接口 (/auth/*)
       // -------------------------------------------------------------
-      // 登录
+      // 登录 (单用户模式：防暴力破解限制 5次/分钟)
       if (path === '/auth/login' && method === 'POST') {
+        if (!checkRateLimit(clientIp, 5, 60000)) {
+          return error('登录尝试过于频繁，请 1 分钟后再试', 429);
+        }
+
         const body = await request.json().catch(() => ({}));
-        const { username, password } = body;
-        if (!username || !password) {
-          return error('请输入用户名和密码', 400);
+        const password = body.password;
+        if (!password) {
+          return error('请输入管理密码', 400);
         }
 
-        const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?')
-          .bind(username)
-          .first();
+        // 获取主管理员账户（默认 admin 或首个账号）
+        let user = await env.DB.prepare('SELECT * FROM users ORDER BY createdAt ASC LIMIT 1').first();
 
+        // 如果数据库尚未初始化账号，自动补全首个主账号
         if (!user) {
-          return error('用户名或密码错误', 401);
+          const freshHash = await hashPassword('admin123');
+          const userId = 'usr-admin-default';
+          await env.DB.prepare(
+            'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, ?)'
+          )
+            .bind(userId, 'admin', freshHash, new Date().toISOString())
+            .run();
+
+          user = { id: userId, username: 'admin', passwordHash: freshHash };
         }
 
-        // 优先常规密码校验
+        // 校验密码
         let isValid = await verifyPassword(password, user.passwordHash);
 
-        // 如果密码校验未通过，但输入的是默认管理员凭证 admin / admin123，则执行自愈并重置为有效 Hash
-        if (!isValid && username === 'admin' && password === 'admin123') {
-          const freshHash = await hashPassword('admin123');
+        // 如果默认 admin123 首次初始化，或验证通过后自动升级 Hash 为 210,000 次 OWASP 标准
+        if (isValid) {
+          const updatedHash = await hashPassword(password);
           await env.DB.prepare('UPDATE users SET passwordHash = ? WHERE id = ?')
-            .bind(freshHash, user.id)
+            .bind(updatedHash, user.id)
             .run();
-          isValid = true;
-        }
-
-        if (!isValid) {
-          return error('用户名或密码错误', 401);
+        } else {
+          return error('管理密码错误，请重新输入', 401);
         }
 
         // 生成 Session
@@ -217,7 +284,7 @@ export default {
         const tokenHash = await sha256(token);
 
         const sessionId = generateId('sess');
-        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30天有效
         const now = new Date().toISOString();
 
         await env.DB.prepare(
@@ -236,9 +303,12 @@ export default {
       if (path === '/auth/me' && method === 'GET') {
         const session = await authenticate();
         if (!session) return error('未登录或凭证已失效', 401);
+        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(session.userId).first();
+        const isDefaultPassword = user ? await verifyPassword('admin123', user.passwordHash) : false;
         return success({
           id: session.userId,
           username: session.username,
+          isDefaultPassword,
         });
       }
 
@@ -255,6 +325,10 @@ export default {
 
       // 修改密码
       if (path === '/auth/change-password' && method === 'POST') {
+        if (!checkRateLimit(clientIp, 5, 60000)) {
+          return error('密码修改请求过于频繁，请稍后再试', 429);
+        }
+
         const session = await authenticate();
         if (!session) return error('未登录或凭证已失效', 401);
 
@@ -265,12 +339,14 @@ export default {
 
         const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(session.userId).first();
         if (!user || !(await verifyPassword(oldPassword, user.passwordHash))) {
-          return error('原密码不正确', 400);
+          return error('原管理密码不正确', 400);
         }
 
         const newHash = await hashPassword(newPassword);
         await env.DB.prepare('UPDATE users SET passwordHash = ? WHERE id = ?').bind(newHash, session.userId).run();
-        return success({ message: '密码修改成功' });
+        // 修改密码后立即让该用户的所有旧登录 Session 失效
+        await env.DB.prepare('DELETE FROM sessions WHERE userId = ?').bind(session.userId).run();
+        return success({ message: '密码修改成功，所有旧登录会话已安全注销' });
       }
 
       // 用户列表

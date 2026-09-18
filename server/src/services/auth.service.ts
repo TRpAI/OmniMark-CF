@@ -6,15 +6,30 @@ import { generateToken, hashToken, hashIdentifier } from '../security/token';
 import { User, Session } from '../../../packages/shared/types';
 
 export class AuthService {
-  async login(username: string, password: string, ip?: string, userAgent?: string): Promise<{ token: string; user: { id: string; username: string } }> {
-    const user = await userRepository.findByUsername(username);
+  async login(username: string | undefined, password: string, ip?: string, userAgent?: string): Promise<{ token: string; user: { id: string; username: string } }> {
+    let users = await userRepository.findAll();
+    let user = users[0];
+
+    // 如果指定了 username 则优先查找，找不到再退回主管理员账号
+    if (username && username.trim()) {
+      const found = await userRepository.findByUsername(username.trim());
+      if (found) user = found;
+    }
+
     if (!user) {
-      throw new Error('用户名或密码错误');
+      // 若数据库尚无账号，自动创建首个单用户主账号
+      const defaultHash = hashPassword('admin123');
+      user = await userRepository.create({
+        id: 'usr-admin-default',
+        username: 'admin',
+        passwordHash: defaultHash,
+        createdAt: new Date().toISOString(),
+      });
     }
 
     const isValid = verifyPassword(password, user.passwordHash);
     if (!isValid) {
-      throw new Error('用户名或密码错误');
+      throw new Error('管理密码错误，请重新输入');
     }
 
     const rawToken = generateToken();
@@ -60,16 +75,18 @@ export class AuthService {
   async changePassword(userId: string, oldPass: string, newPass: string): Promise<void> {
     const user = await userRepository.findById(userId);
     if (!user) {
-      throw new Error('用户不存在');
+      throw new Error('管理员账户不存在');
     }
     if (!verifyPassword(oldPass, user.passwordHash)) {
-      throw new Error('原密码不正确');
+      throw new Error('原管理密码不正确');
     }
     if (!newPass || newPass.length < 6) {
       throw new Error('新密码长度不能少于 6 位');
     }
     const newHash = hashPassword(newPass);
     await userRepository.updatePassword(userId, newHash);
+    // 强制注销该用户的所有旧登录会话，保障安全性
+    await sessionRepository.deleteByUserId(userId);
   }
 
   async listUsers(): Promise<{ id: string; username: string; createdAt: string }[]> {

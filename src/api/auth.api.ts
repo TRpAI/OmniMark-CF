@@ -1,11 +1,14 @@
 import { apiClient } from './client';
 
 export const authApi = {
-  login: (username: string, password: string) =>
-    apiClient.post<{ token: string; user: { id: string; username: string } }>('/auth/login', { username, password }),
+  login: (password: string, username = 'admin') =>
+    apiClient.post<{ token: string; user: { id: string; username: string; isDefaultPassword?: boolean } }>('/auth/login', {
+      password,
+      username,
+    }),
 
   me: () =>
-    apiClient.get<{ id: string; username: string; createdAt: string }>('/auth/me'),
+    apiClient.get<{ id: string; username: string; createdAt?: string; isDefaultPassword?: boolean }>('/auth/me'),
 
   logout: () =>
     apiClient.post('/auth/logout'),

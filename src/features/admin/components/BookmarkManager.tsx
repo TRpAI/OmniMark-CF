@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Folder,
   Tag,
+  AlertTriangle,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -28,6 +29,8 @@ export const BookmarkManager: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isFetchingFavicon, setIsFetchingFavicon] = useState(false);
+  const [deleteConfirmBm, setDeleteConfirmBm] = useState<Bookmark | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -317,7 +320,7 @@ export const BookmarkManager: React.FC = () => {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDelete(bm.id, bm.title)}
+                            onClick={() => setDeleteConfirmBm(bm)}
                             className="p-1.5 text-zinc-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                             title="删除"
                           >
@@ -507,6 +510,53 @@ export const BookmarkManager: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* High-Risk Action Secondary Confirmation Modal */}
+      {deleteConfirmBm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center border border-red-200/50 dark:border-red-900/40">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">高风险操作二次确认</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                确定要彻底删除书签 <strong className="text-zinc-800 dark:text-zinc-200">“{deleteConfirmBm.title}”</strong> 吗？
+                此操作将立即从持久化存储中移除，不可恢复。
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setDeleteConfirmBm(null)}
+                disabled={isDeleting}
+                className="px-3.5 py-2 text-xs font-medium rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={async () => {
+                  setIsDeleting(true);
+                  try {
+                    await deleteBookmark(deleteConfirmBm.id);
+                    showToast('书签已安全删除', 'success');
+                    setDeleteConfirmBm(null);
+                  } catch (err: any) {
+                    showToast(err.message || '删除失败', 'error');
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                {isDeleting ? '正在执行删除...' : '确认永久删除'}
+              </button>
+            </div>
           </div>
         </div>
       )}

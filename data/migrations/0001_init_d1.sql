@@ -71,6 +71,7 @@ INSERT OR IGNORE INTO categories (id, name, icon, sortOrder, createdAt) VALUES
 ('cat-cloud', '云与基础设施', 'Cloud', 5, datetime('now')),
 ('cat-tools', '效率工具', 'Wrench', 6, datetime('now'));
 
--- Initial Default Admin (admin / admin123)
+-- Initial Default Admin (Passcode: admin123)
 INSERT OR IGNORE INTO users (id, username, passwordHash, createdAt) VALUES
-('usr-admin-1', 'admin', 'c6218d6a8b7921dc8074d283626e2e58:145cf4dd18dcf1d02828ad97289c586155c60c4e63df8164418f148c277aa2a887a62d400a973fed6b1f0ac0b5d6382d6303434b465cb52dec14810d88e27918', datetime('now'));
+('usr-admin-1', 'admin', 'a1b2c3d4e5f60718:609363b91c3bf694ecfa56d640e0d0ca4bb99f9d98ed6762767eaee9d73ec7c7dfdacf0b9715a4776fc0ed4497232d01bd1d0d5c697222247a5b4fa207ab0fe4', datetime('now'));
+

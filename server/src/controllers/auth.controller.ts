@@ -1,13 +1,14 @@
 import { Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { verifyPassword } from '../security/password';
 
 export class AuthController {
   async login(req: Request, res: Response): Promise<void> {
     try {
       const { username, password } = req.body;
-      if (!username || !password) {
-        res.status(400).json({ success: false, error: '请输入用户名和密码' });
+      if (!password) {
+        res.status(400).json({ success: false, error: '请输入管理密码' });
         return;
       }
       const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
@@ -16,7 +17,7 @@ export class AuthController {
       const result = await authService.login(username, password, ip, userAgent);
       res.json({ success: true, data: result });
     } catch (err: any) {
-      res.status(401).json({ success: false, error: err.message || '登录失败' });
+      res.status(401).json({ success: false, error: err.message || '登录验证失败' });
     }
   }
 
@@ -25,12 +26,14 @@ export class AuthController {
       res.status(401).json({ success: false, error: '未认证' });
       return;
     }
+    const isDefaultPassword = verifyPassword('admin123', req.user.passwordHash);
     res.json({
       success: true,
       data: {
         id: req.user.id,
         username: req.user.username,
         createdAt: req.user.createdAt,
+        isDefaultPassword,
       },
     });
   }

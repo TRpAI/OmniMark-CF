@@ -18,7 +18,11 @@ export const ImportExport: React.FC = () => {
   const { showToast } = useUiStore();
 
   const [isImporting, setIsImporting] = useState(false);
-  const [importResult, setImportResult] = useState<{ categoriesAdded: number; bookmarksAdded: number } | null>(null);
+  const [importResult, setImportResult] = useState<{
+    categoriesAdded: number;
+    bookmarksAdded: number;
+    duplicatesSkipped?: number;
+  } | null>(null);
 
   // HTML Bookmark file handler
   const handleHtmlFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,10 +88,15 @@ export const ImportExport: React.FC = () => {
           <div className="mt-4 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <div className="text-xs text-emerald-800 dark:text-emerald-300">
-              <p className="font-semibold">导入完成！</p>
-              <p>
-                已成功新增 <span className="font-bold">{importResult.categoriesAdded}</span> 个分类，
-                <span className="font-bold">{importResult.bookmarksAdded}</span> 条书签数据。
+              <p className="font-semibold text-sm">导入处理完成！</p>
+              <p className="mt-0.5">
+                成功新增 <span className="font-bold">{importResult.categoriesAdded}</span> 个分类，
+                <span className="font-bold">{importResult.bookmarksAdded}</span> 条书签。
+                {importResult.duplicatesSkipped ? (
+                  <span className="ml-1 text-amber-700 dark:text-amber-400 font-medium">
+                    (自动跳过 <span className="font-bold">{importResult.duplicatesSkipped}</span> 条已存在的重复网址)
+                  </span>
+                ) : null}
               </p>
             </div>
           </div>
