@@ -74,6 +74,58 @@ export class UploadController {
       res.status(500).json({ success: false, error: err.message });
     }
   }
+
+  // OneDrive Scheduled Incremental Backup
+  async getOneDriveConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const { oneDriveService } = await import('../services/onedrive.service');
+      const config = oneDriveService.getConfig();
+      res.json({ success: true, data: config });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async saveOneDriveConfig(req: Request, res: Response): Promise<void> {
+    try {
+      const { oneDriveService } = await import('../services/onedrive.service');
+      const saved = oneDriveService.saveConfig(req.body);
+      res.json({ success: true, data: saved, message: 'OneDrive 定时备份配置已更新' });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async testOneDrive(req: Request, res: Response): Promise<void> {
+    try {
+      const { oneDriveService } = await import('../services/onedrive.service');
+      const result = await oneDriveService.testConnection();
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async triggerOneDriveBackup(req: Request, res: Response): Promise<void> {
+    try {
+      const { oneDriveService } = await import('../services/onedrive.service');
+      const trigger = req.body?.trigger || 'manual';
+      const result = await oneDriveService.executeIncrementalBackup(trigger);
+      res.json({ success: true, data: result, message: result.summary });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async getOneDriveHistory(req: Request, res: Response): Promise<void> {
+    try {
+      const { oneDriveService } = await import('../services/onedrive.service');
+      const history = oneDriveService.getHistory();
+      res.json({ success: true, data: history });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
 }
 
 export const uploadController = new UploadController();

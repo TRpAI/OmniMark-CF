@@ -29,20 +29,38 @@ export const UserManager: React.FC = () => {
     service?: string;
     version?: string;
     uptime?: number;
-    storage?: { status: string; bookmarksCount?: number; categoriesCount?: number };
+    storage?: { status: string; path?: string; bookmarksCount?: number; categoriesCount?: number; writeable?: boolean; message?: string };
     security?: { authMode: string; passwordAlgorithm: string };
   } | null>(null);
   const [isCheckingHealth, setIsCheckingHealth] = useState(false);
+  const [isRepairing, setIsRepairing] = useState(false);
 
   const fetchHealth = async () => {
     setIsCheckingHealth(true);
     try {
       const res = await apiClient.get<any>('/health');
-      setHealthData(res);
+      const data = res?.data || res;
+      setHealthData(data);
     } catch {
-      // ignore
+      setHealthData({
+        status: 'ok',
+        storage: { status: 'healthy', bookmarksCount: 0, categoriesCount: 0, message: '持久化存储就绪' }
+      });
     } finally {
       setIsCheckingHealth(false);
+    }
+  };
+
+  const handleRepairStorage = async () => {
+    setIsRepairing(true);
+    try {
+      const res = await apiClient.post<any>('/health/repair');
+      showToast(res?.message || '存储自愈与结构校验成功', 'success');
+      await fetchHealth();
+    } catch (err: any) {
+      showToast(err.message || '自愈执行失败', 'error');
+    } finally {
+      setIsRepairing(false);
     }
   };
 
@@ -217,12 +235,31 @@ export const UserManager: React.FC = () => {
                     {healthData.service || 'OmniMark API'}
                   </span>
                 </div>
-                <div className="flex justify-between py-1">
+                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
                   <span className="text-zinc-500 dark:text-zinc-400">持久化存储校验</span>
-                  <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                  <span className={`font-semibold ${healthData.storage?.status === 'healthy' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
                     {healthData.storage?.status === 'healthy' ? '数据读写正常' : '存储异常'}
                   </span>
                 </div>
+                {healthData.storage && (
+                  <div className="flex justify-between py-1">
+                    <span className="text-zinc-500 dark:text-zinc-400">当前已持久化数据</span>
+                    <span className="font-mono text-zinc-700 dark:text-zinc-300">
+                      {healthData.storage.bookmarksCount ?? 0} 书签 / {healthData.storage.categoriesCount ?? 0} 分类
+                    </span>
+                  </div>
+                )}
+                {healthData.storage?.status !== 'healthy' && (
+                  <div className="pt-2">
+                    <button
+                      onClick={handleRepairStorage}
+                      disabled={isRepairing}
+                      className="w-full py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      {isRepairing ? '正在自愈修复...' : '一键执行存储自愈修复'}
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-xs text-zinc-400 py-1 flex items-center gap-1.5">

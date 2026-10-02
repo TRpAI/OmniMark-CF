@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Folder, ArrowUp, ArrowDown, X, AlertTriangle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Folder, ArrowUp, ArrowDown, X, AlertTriangle, Layers } from 'lucide-react';
 import { Category } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
@@ -113,22 +113,93 @@ export const CategoryManager: React.FC = () => {
         </div>
         <button
           onClick={openAddModal}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-sm transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 p-2 sm:px-4 sm:py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium shadow-sm transition-colors cursor-pointer"
+          title="新建分类"
         >
           <Plus className="w-4 h-4" />
-          <span>新建分类</span>
+          <span className="hidden sm:inline">新建分类</span>
         </button>
       </div>
 
-      {/* Categories List */}
-      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+      {/* Mobile Narrow Screen View: Simplified icon-based cards */}
+      <div className="md:hidden space-y-2.5">
+        {categories.map((cat, index) => {
+          const count = bookmarks.filter((b) => b.categoryId === cat.id).length;
+          return (
+            <div
+              key={cat.id}
+              className="flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-xs"
+            >
+              {/* Category Info with Icon */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100/80 dark:border-indigo-900/50">
+                  {renderCategoryIcon(cat.icon, 'w-4 h-4')}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-semibold text-sm text-zinc-900 dark:text-white truncate">
+                      {cat.name}
+                    </span>
+                    <span className="text-[11px] px-1.5 py-0.2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono shrink-0">
+                      {count}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
+                    #{cat.sortOrder}
+                  </span>
+                </div>
+              </div>
+
+              {/* Simplified Action Icons on Mobile */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  disabled={index === 0}
+                  onClick={() => moveCategory(index, 'up')}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-20 cursor-pointer"
+                  title="上移"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  disabled={index === categories.length - 1}
+                  onClick={() => moveCategory(index, 'down')}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 disabled:opacity-20 cursor-pointer"
+                  title="下移"
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => openEditModal(cat)}
+                  className="p-1.5 rounded-lg text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  title="编辑"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    setDeleteModalCat(cat);
+                    setDeleteBookmarksOption(false);
+                  }}
+                  className="p-1.5 rounded-lg text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors cursor-pointer"
+                  title="删除"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop / Tablet View: Full Table */}
+      <div className="hidden md:block rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse text-sm">
           <thead>
             <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">
               <th className="py-3 px-4 w-14">排序</th>
               <th className="py-3 px-4">分类名称与图标</th>
               <th className="py-3 px-4">包含书签数</th>
-              <th className="py-3 px-4">创建时间</th>
+              <th className="py-3 px-4 hidden lg:table-cell">创建时间</th>
               <th className="py-3 px-4 text-right">操作</th>
             </tr>
           </thead>
@@ -184,7 +255,7 @@ export const CategoryManager: React.FC = () => {
                   </td>
 
                   {/* CreatedAt */}
-                  <td className="py-3.5 px-4 text-xs text-zinc-400">
+                  <td className="py-3.5 px-4 text-xs text-zinc-400 hidden lg:table-cell">
                     {new Date(cat.createdAt).toLocaleDateString()}
                   </td>
 
@@ -226,7 +297,7 @@ export const CategoryManager: React.FC = () => {
           >
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl"
+              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -293,13 +364,13 @@ export const CategoryManager: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-4 py-2 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-medium rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                  className="px-5 py-2 text-sm font-medium rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm cursor-pointer"
                 >
                   {editingCategory ? '保存修改' : '立即创建'}
                 </button>
@@ -357,13 +428,13 @@ export const CategoryManager: React.FC = () => {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setDeleteModalCat(null)}
-                className="px-4 py-2 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                className="px-4 py-2 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer"
               >
                 取消
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-5 py-2 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm"
+                className="px-5 py-2 text-sm font-medium rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm cursor-pointer"
               >
                 确认删除
               </button>

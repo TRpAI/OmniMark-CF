@@ -3,10 +3,8 @@ import {
   LayoutDashboard,
   Bookmark,
   Folder,
-  Users,
   ArrowLeft,
   FileCode2,
-  Cloud,
   Settings,
   Shield,
   ExternalLink,
@@ -18,7 +16,6 @@ import { BookmarkManager } from '../features/admin/components/BookmarkManager';
 import { CategoryManager } from '../features/admin/components/CategoryManager';
 import { UserManager } from '../features/admin/components/UserManager';
 import { ImportExport } from '../features/admin/components/ImportExport';
-import { CloudflareGuide } from '../features/admin/components/CloudflareGuide';
 import { SettingsManager } from '../features/admin/components/SettingsManager';
 
 export const AdminPage: React.FC = () => {
@@ -26,7 +23,7 @@ export const AdminPage: React.FC = () => {
   const { user } = useAuthStore();
 
   const navItems: {
-    id: 'dashboard' | 'bookmarks' | 'categories' | 'users' | 'import-export' | 'cloudflare' | 'settings';
+    id: 'dashboard' | 'bookmarks' | 'categories' | 'users' | 'import-export' | 'settings';
     label: string;
     icon: React.ElementType;
     badge?: string;
@@ -34,9 +31,8 @@ export const AdminPage: React.FC = () => {
     { id: 'dashboard', label: '控制面板', icon: LayoutDashboard },
     { id: 'bookmarks', label: '书签管理', icon: Bookmark },
     { id: 'categories', label: '分类管理', icon: Folder },
-    { id: 'users', label: '安全与密码', icon: Shield },
-    { id: 'import-export', label: '导入与备份', icon: FileCode2 },
-    { id: 'cloudflare', label: 'Cloudflare 部署', icon: Cloud, badge: 'D1/KV' },
+    { id: 'users', label: '安全与存储', icon: Shield },
+    { id: 'import-export', label: '导入与备份', icon: FileCode2, badge: 'OneDrive' },
     { id: 'settings', label: '全局设置', icon: Settings },
   ];
 
@@ -47,7 +43,7 @@ export const AdminPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setCurrentView('home')}
-            className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="p-2 text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
             title="返回前台主页"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -56,11 +52,11 @@ export const AdminPage: React.FC = () => {
             <h1 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
               <span>OmniMark 管理控制台</span>
               <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50">
-                v2.0 Refactored
+                v2.1
               </span>
             </h1>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              当前登录管理员：<span className="font-semibold text-zinc-800 dark:text-zinc-200">{user?.username}</span>
+              当前管理身份：<span className="font-semibold text-zinc-800 dark:text-zinc-200">{user?.username || 'admin'}</span>
             </p>
           </div>
         </div>
@@ -114,7 +110,6 @@ export const AdminPage: React.FC = () => {
           {adminTab === 'categories' && <CategoryManager />}
           {adminTab === 'users' && <UserManager />}
           {adminTab === 'import-export' && <ImportExport />}
-          {adminTab === 'cloudflare' && <CloudflareGuide />}
           {adminTab === 'settings' && <SettingsManager />}
         </div>
       </div>

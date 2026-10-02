@@ -14,7 +14,7 @@ export const SettingsManager: React.FC = () => {
     title: settings.title || 'OmniMark 站点导航',
     subtitle: settings.subtitle || '高效、清爽、可自建的现代书签与导航系统',
     logoText: settings.logoText || 'OmniMark',
-    footerText: settings.footerText || 'OmniMark - Cloudflare Pages + Workers + D1 Powered',
+    footerText: settings.footerText || 'OmniMark 现代书签与导航管理系统',
     announcement: settings.announcement || '',
     enablePinnedSection: settings.enablePinnedSection ?? true,
     enableClickCounter: settings.enableClickCounter ?? true,
@@ -162,7 +162,7 @@ export const SettingsManager: React.FC = () => {
             <div className="flex items-center gap-2">
               <Server className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-                后端 API 节点配置 (Cloudflare Worker)
+                后端 API 节点配置
               </h4>
             </div>
             <span className="text-xs text-zinc-400">分离部署时使用</span>
@@ -177,7 +177,7 @@ export const SettingsManager: React.FC = () => {
                 type="text"
                 value={apiUrl}
                 onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="默认为 /api ，若为独立 Worker 请填入例如 https://omnimark-api.workers.dev"
+                placeholder="默认为 /api ，若为独立 API 服务请填入完整 URL"
                 className="flex-1 px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
               />
               <button
@@ -193,7 +193,7 @@ export const SettingsManager: React.FC = () => {
               </button>
             </div>
             <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
-              单体部署时保持默认 <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">/api</code> 即可；若将前端部署在 Cloudflare Pages、后端部署在 Cloudflare Workers，可在此填入 Worker 的公网 URL。
+              单体运行时保持默认 <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">/api</code> 即可；若将前后端分离部署，可在此填入后端服务的公网 URL。
             </p>
           </div>
         </div>
