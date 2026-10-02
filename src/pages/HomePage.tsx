@@ -3,17 +3,18 @@ import { SearchBar } from '../components/SearchBar';
 import { CategoryTabs } from '../features/categories/components/CategoryTabs';
 import { BookmarkGrid } from '../features/bookmarks/components/BookmarkGrid';
 import { useBookmarkStore } from '../stores/bookmark.store';
-import { Megaphone, Bookmark, Github, Cloud, Zap, Database } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
+import { Megaphone, Cloud, Zap, Database, ShieldCheck } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const { settings, isLoading } = useBookmarkStore();
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-between">
-      <main className="pb-16">
+      <main className="pb-12">
         {/* Optional Announcement Banner */}
         {settings.announcement && (
-          <div className="w-full bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 py-2.5 px-4 text-center">
+          <div className="w-full bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 py-2 px-4 text-center">
             <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs sm:text-sm text-indigo-700 dark:text-indigo-300">
               <Megaphone className="w-4 h-4 shrink-0 text-indigo-500" />
               <span>{settings.announcement}</span>
@@ -22,11 +23,11 @@ export const HomePage: React.FC = () => {
         )}
 
         {/* Hero Section */}
-        <section className="pt-10 pb-6 text-center px-4">
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-2">
+        <section className="pt-8 sm:pt-10 pb-4 text-center px-4">
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-1.5">
             {settings.title || 'OmniMark 站点导航'}
           </h1>
-          <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-400 max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
             {settings.subtitle || '高效、清爽、可自建的现代书签与导航系统'}
           </p>
         </section>
@@ -47,30 +48,29 @@ export const HomePage: React.FC = () => {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white/50 dark:bg-zinc-950/50 py-8 px-4 text-center text-xs text-zinc-500 dark:text-zinc-400">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      {/* Simplified Minimalist Footer with Icons */}
+      <footer className="border-t border-zinc-200/60 dark:border-zinc-800/60 bg-white/40 dark:bg-zinc-950/40 py-5 px-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <span className="font-semibold text-zinc-800 dark:text-zinc-200">
+            <BrandLogo size="sm" />
+            <span className="font-semibold text-zinc-700 dark:text-zinc-300">
               {settings.logoText || 'OmniMark'}
             </span>
-            <span>—</span>
-            <span>{settings.footerText || 'Cloudflare Pages + Workers + D1 Powered'}</span>
           </div>
 
-          <div className="flex items-center gap-4 text-zinc-400 dark:text-zinc-500">
-            <span className="inline-flex items-center gap-1.5">
-              <Cloud className="w-3.5 h-3.5 text-sky-500" />
-              <span>Pages</span>
+          {/* Minimalist Tech & Status Icons with Tooltips */}
+          <div className="flex items-center gap-3">
+            <span title="Cloudflare Pages Ready" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <Cloud className="w-4 h-4 text-sky-500" />
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>Workers</span>
+            <span title="Workers Powered" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <Zap className="w-4 h-4 text-amber-500" />
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <Database className="w-3.5 h-3.5 text-emerald-500" />
-              <span>D1 Database</span>
+            <span title="D1 Database / Local Storage" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <Database className="w-4 h-4 text-emerald-500" />
+            </span>
+            <span title="Secure Administration" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+              <ShieldCheck className="w-4 h-4 text-indigo-500" />
             </span>
           </div>
         </div>

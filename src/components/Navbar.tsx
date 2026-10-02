@@ -1,86 +1,88 @@
 import React from 'react';
-import { Bookmark, ShieldCheck, Compass, LogIn, LogOut, LayoutGrid, Settings, Sparkles } from 'lucide-react';
+import { Compass, Settings, LogOut, ShieldCheck, Lock } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 import { useUiStore } from '../stores/ui.store';
 import { useBookmarkStore } from '../stores/bookmark.store';
+import { BrandLogo } from './BrandLogo';
 
 export const Navbar: React.FC = () => {
-  const { isAuthenticated, user, logout } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
   const { currentView, setCurrentView, setLoginModalOpen } = useUiStore();
   const { settings } = useBookmarkStore();
 
+  const handleAdminAction = () => {
+    if (currentView === 'admin') {
+      setCurrentView('home');
+    } else if (isAuthenticated) {
+      setCurrentView('admin');
+    } else {
+      setLoginModalOpen(true);
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/85 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/85 transition-colors">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="sticky top-0 z-40 w-full border-b border-zinc-200/80 bg-white/90 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/90 transition-colors">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-15 sm:h-16 flex items-center justify-between">
         {/* Left: Brand / Logo */}
         <div
           onClick={() => setCurrentView('home')}
-          className="flex items-center gap-3 cursor-pointer group select-none"
+          className="flex items-center gap-2.5 sm:gap-3 cursor-pointer group select-none"
+          title="返回主页"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-white shadow-sm shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-200">
-            <Bookmark className="w-5 h-5 fill-white/20" />
-          </div>
-          <div>
+          <BrandLogo size="md" className="group-hover:scale-105 transition-transform" />
+          <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-lg tracking-tight text-zinc-900 dark:text-white">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-600 dark:from-white dark:via-zinc-100 dark:to-zinc-300 bg-clip-text text-transparent">
                 {settings.logoText || 'OmniMark'}
               </span>
-              <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200/60 dark:border-sky-800/50">
-                CF D1/KV Ready
+              <span className="hidden md:inline-flex px-2 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300 border border-indigo-200/50">
+                Hub
               </span>
             </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 hidden sm:block">
-              站点导航与书签系统
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 hidden sm:block leading-none mt-0.5">
+              现代书签与导航管理
             </p>
           </div>
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {currentView === 'admin' ? (
-            <button
-              onClick={() => setCurrentView('home')}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded-lg transition-colors"
-            >
-              <Compass className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-              返回前台导航
-            </button>
-          ) : (
-            <button
-              onClick={() => {
-                if (isAuthenticated) {
-                  setCurrentView('admin');
-                } else {
-                  setLoginModalOpen(true);
-                }
-              }}
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-zinc-100/90 hover:bg-zinc-200/90 dark:bg-zinc-800/90 dark:hover:bg-zinc-700/90 rounded-lg transition-colors"
-            >
-              <Settings className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>管理后台</span>
-            </button>
-          )}
+        {/* Right: Unified Single Management Access */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Single Unified Admin/Home Toggle Button (Icon only on mobile, text on desktop) */}
+          <button
+            onClick={handleAdminAction}
+            title={currentView === 'admin' ? '返回前台导航' : isAuthenticated ? '管理后台' : '管理员登录'}
+            className={`inline-flex items-center justify-center gap-2 p-2 sm:px-3.5 sm:py-2 text-sm font-medium rounded-xl transition-all cursor-pointer ${
+              currentView === 'admin'
+                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm hover:opacity-90'
+                : 'bg-zinc-100/90 hover:bg-zinc-200/90 dark:bg-zinc-800/90 dark:hover:bg-zinc-700/90 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60'
+            }`}
+          >
+            {currentView === 'admin' ? (
+              <>
+                <Compass className="w-5 h-5 sm:w-4 sm:h-4 text-sky-400 dark:text-sky-600" />
+                <span className="hidden sm:inline">返回主页</span>
+              </>
+            ) : isAuthenticated ? (
+              <>
+                <Settings className="w-5 h-5 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
+                <span className="hidden sm:inline">管理后台</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-5 h-5 sm:w-4 sm:h-4 text-zinc-500 dark:text-zinc-400" />
+                <span className="hidden sm:inline">管理后台</span>
+              </>
+            )}
+          </button>
 
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2 pl-2 border-l border-zinc-200 dark:border-zinc-800">
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 hidden md:inline">
-                {user?.username}
-              </span>
-              <button
-                onClick={() => logout()}
-                title="退出登录"
-                className="p-2 text-zinc-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
+          {/* Quick Logout button when authenticated (Icon on mobile, subtle on desktop) */}
+          {isAuthenticated && (
             <button
-              onClick={() => setLoginModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white rounded-lg shadow-sm transition-colors"
+              onClick={() => logout()}
+              title="退出管理模式"
+              className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer"
             >
-              <LogIn className="w-3.5 h-3.5" />
-              <span>登录</span>
+              <LogOut className="w-5 h-5 sm:w-4 sm:h-4" />
             </button>
           )}
         </div>

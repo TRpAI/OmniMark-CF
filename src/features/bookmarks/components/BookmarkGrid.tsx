@@ -1,6 +1,7 @@
 import React from 'react';
-import { Pin, Sparkles, Folder } from 'lucide-react';
+import { Pin } from 'lucide-react';
 import { BookmarkCard } from './BookmarkCard';
+import { PinnedBookmarkCard } from './PinnedBookmarkCard';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { EmptyState } from '../../../components/EmptyState';
 import { renderCategoryIcon } from '../../../utils/iconMap';
@@ -74,24 +75,25 @@ export const BookmarkGrid: React.FC = () => {
   const showGrouped = activeCategoryId === 'all' && !query;
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-      {/* 1. Pinned / Quick Launch Bar */}
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      {/* 1. Pinned / Quick Launch Bar (Icon and Title Only) */}
       {showPinnedSection && (
-        <section className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-indigo-50/60 via-purple-50/40 to-sky-50/60 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-sky-950/20 border border-indigo-100/80 dark:border-indigo-900/30">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="p-1 rounded-lg bg-indigo-600 text-white shadow-sm">
+        <section className="p-3.5 sm:p-4.5 rounded-2xl bg-gradient-to-r from-indigo-50/60 via-purple-50/30 to-sky-50/60 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-sky-950/20 border border-indigo-100/80 dark:border-indigo-900/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-1 rounded-md bg-indigo-600 text-white shadow-xs">
               <Pin className="w-3.5 h-3.5" />
             </div>
-            <h2 className="text-sm font-bold text-zinc-900 dark:text-white tracking-tight">
-              常用置顶站点
+            <h2 className="text-xs sm:text-sm font-bold text-zinc-900 dark:text-white tracking-tight">
+              常用置顶
             </h2>
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+            <span className="text-[11px] text-zinc-400 dark:text-zinc-500">
               ({pinnedBookmarks.length})
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {/* Compact Quick-Launch Grid showing only icon + name */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-2.5">
             {pinnedBookmarks.map((bm) => (
-              <BookmarkCard key={`pinned-${bm.id}`} bookmark={bm} />
+              <PinnedBookmarkCard key={`pinned-${bm.id}`} bookmark={bm} />
             ))}
           </div>
         </section>
@@ -105,12 +107,12 @@ export const BookmarkGrid: React.FC = () => {
 
           return (
             <section key={cat.id} id={`category-${cat.id}`} className="scroll-mt-24">
-              <div className="flex items-center justify-between gap-3 mb-4 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
-                <div className="flex items-center gap-2.5">
+              <div className="flex items-center justify-between gap-3 mb-3.5 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
+                <div className="flex items-center gap-2">
                   <div className="p-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300">
                     {renderCategoryIcon(cat.icon, 'w-4 h-4')}
                   </div>
-                  <h2 className="text-base font-bold text-zinc-900 dark:text-white">
+                  <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white">
                     {cat.name}
                   </h2>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400">
@@ -126,7 +128,7 @@ export const BookmarkGrid: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
                 {catBookmarks.map((bm) => (
                   <BookmarkCard key={bm.id} bookmark={bm} />
                 ))}
@@ -137,13 +139,13 @@ export const BookmarkGrid: React.FC = () => {
       ) : (
         <section>
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
-            <h2 className="text-base font-bold text-zinc-900 dark:text-white">
+            <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white">
               {query
                 ? `搜索结果 (${filtered.length})`
                 : categories.find((c) => c.id === activeCategoryId)?.name || '书签列表'}
             </h2>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 sm:gap-4">
             {filtered.map((bm) => (
               <BookmarkCard key={bm.id} bookmark={bm} />
             ))}
