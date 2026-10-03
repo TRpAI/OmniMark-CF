@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { faviconService } from '../services/favicon.service';
 import { importService } from '../services/import.service';
 import { exportService } from '../services/export.service';
+import { oneDriveService } from '../services/onedrive.service';
 
 export class UploadController {
   async getFavicon(req: Request, res: Response): Promise<void> {
@@ -75,10 +76,9 @@ export class UploadController {
     }
   }
 
-  // OneDrive Scheduled Incremental Backup
+  // OneDrive Azure Entra OAuth 2.0 & Graph REST API endpoints
   async getOneDriveConfig(req: Request, res: Response): Promise<void> {
     try {
-      const { oneDriveService } = await import('../services/onedrive.service');
       const config = oneDriveService.getConfig();
       res.json({ success: true, data: config });
     } catch (err: any) {
@@ -88,7 +88,6 @@ export class UploadController {
 
   async saveOneDriveConfig(req: Request, res: Response): Promise<void> {
     try {
-      const { oneDriveService } = await import('../services/onedrive.service');
       const saved = oneDriveService.saveConfig(req.body);
       res.json({ success: true, data: saved, message: 'OneDrive 定时备份配置已更新' });
     } catch (err: any) {
@@ -96,9 +95,32 @@ export class UploadController {
     }
   }
 
+  async getOneDriveAuthUrl(req: Request, res: Response): Promise<void> {
+    try {
+      const redirectUri = req.body?.redirectUri as string | undefined;
+      const data = oneDriveService.generateAuthUrl(redirectUri);
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async exchangeAuthCode(req: Request, res: Response): Promise<void> {
+    try {
+      const { code, redirectUri } = req.body;
+      if (!code) {
+        res.status(400).json({ success: false, error: '缺少 Authorization Code 授权码' });
+        return;
+      }
+      const result = await oneDriveService.exchangeAuthCode(code, redirectUri);
+      res.json({ success: true, data: result.config, message: result.message });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
   async testOneDrive(req: Request, res: Response): Promise<void> {
     try {
-      const { oneDriveService } = await import('../services/onedrive.service');
       const result = await oneDriveService.testConnection();
       res.json({ success: true, data: result });
     } catch (err: any) {
@@ -108,7 +130,6 @@ export class UploadController {
 
   async triggerOneDriveBackup(req: Request, res: Response): Promise<void> {
     try {
-      const { oneDriveService } = await import('../services/onedrive.service');
       const trigger = req.body?.trigger || 'manual';
       const result = await oneDriveService.executeIncrementalBackup(trigger);
       res.json({ success: true, data: result, message: result.summary });
@@ -119,9 +140,17 @@ export class UploadController {
 
   async getOneDriveHistory(req: Request, res: Response): Promise<void> {
     try {
-      const { oneDriveService } = await import('../services/onedrive.service');
       const history = oneDriveService.getHistory();
       res.json({ success: true, data: history });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async disconnectOneDrive(req: Request, res: Response): Promise<void> {
+    try {
+      const config = oneDriveService.disconnect();
+      res.json({ success: true, data: config, message: '已安全断开 OneDrive 授权连接' });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

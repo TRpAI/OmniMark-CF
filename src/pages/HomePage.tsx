@@ -60,13 +60,13 @@ export const HomePage: React.FC = () => {
 
           {/* Minimalist Tech & Status Icons with Tooltips */}
           <div className="flex items-center gap-3">
-            <span title="Cloudflare Pages Ready" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <span title="云端多端同步" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
               <Cloud className="w-4 h-4 text-sky-500" />
             </span>
-            <span title="Workers Powered" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <span title="毫秒级极速响应" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
               <Zap className="w-4 h-4 text-amber-500" />
             </span>
-            <span title="D1 Database / Local Storage" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+            <span title="本地原子与云端增量存储" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
               <Database className="w-4 h-4 text-emerald-500" />
             </span>
             <span title="Secure Administration" className="p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">

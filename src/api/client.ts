@@ -73,7 +73,7 @@ class ApiClient {
       return await fn();
     } catch (err: any) {
       if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('fetch'))) {
-        throw new Error(`无法连接 API 服务 (${this.baseUrl})。如果是 Cloudflare 独立部署，请检查域名填写或跨域 (CORS) 设置。`);
+        throw new Error(`无法连接 API 服务 (${this.baseUrl})。请检查网络服务状态或跨域 (CORS) 设置。`);
       }
       throw err;
     }

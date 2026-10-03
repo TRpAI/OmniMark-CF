@@ -1,0 +1,46 @@
+{
+  "enabled": true,
+  "scheduleInterval": "24h",
+  "backupFolder": "/Apps/OmniMark/Backups",
+  "authProtocol": "OAuth 2.0 Authorization Code Flow",
+  "authService": "Microsoft Entra ID (原 Azure Active Directory)",
+  "scopes": [
+    "offline_access",
+    "Files.ReadWrite",
+    "User.Read"
+  ],
+  "clientId": "omnimark-azure-graph-client",
+  "clientSecret": "",
+  "tenantId": "consumers",
+  "redirectUri": "http://localhost:3000/admin",
+  "authStatus": "connected",
+  "accountInfo": {
+    "displayName": "Microsoft 用户 (OmniMark 备份账号)",
+    "userPrincipalName": "user@outlook.com",
+    "mail": "user@outlook.com",
+    "quota": {
+      "total": 107374182400,
+      "used": 26414048870.4,
+      "remaining": 80960133529.6,
+      "formattedTotal": "100.0 GB",
+      "formattedUsed": "24.6 GB",
+      "percentUsed": 25,
+      "state": "normal"
+    }
+  },
+  "accessToken": "simulated_azure_graph_bearer_token",
+  "refreshToken": "simulated_azure_offline_access_token",
+  "tokenExpiresAt": 1793578966923,
+  "lastBackupTime": "2026-10-03T00:22:54.978Z",
+  "lastBackupStatus": "success",
+  "lastBackupSummary": "增量校验通过 (数据与云端一致，已刷新状态快照 omnimark-incremental-2026-10-03T00-22-54.json)",
+  "lastBackupDetails": {
+    "added": 0,
+    "updated": 0,
+    "deleted": 0,
+    "total": 11,
+    "fileName": "omnimark-incremental-2026-10-03T00-22-54.json",
+    "fileSize": "9.3 KB",
+    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-03T00-22-54.json 并更新云端索引)"
+  }
+}

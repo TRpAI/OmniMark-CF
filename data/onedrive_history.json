@@ -1,0 +1,47 @@
+[
+  {
+    "id": "bk-1790986975125",
+    "timestamp": "2026-10-03T00:22:54.978Z",
+    "type": "incremental",
+    "trigger": "manual",
+    "bookmarksCount": 11,
+    "addedBookmarks": 0,
+    "updatedBookmarks": 0,
+    "deletedBookmarks": 0,
+    "fileSize": "9.3 KB",
+    "fileName": "omnimark-incremental-2026-10-03T00-22-54.json",
+    "status": "success",
+    "message": "增量校验通过 (数据与云端一致，已刷新状态快照 omnimark-incremental-2026-10-03T00-22-54.json)",
+    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-03T00-22-54.json 并更新云端索引)"
+  },
+  {
+    "id": "bk-1790986966924",
+    "timestamp": "2026-10-03T00:22:46.721Z",
+    "type": "incremental",
+    "trigger": "manual",
+    "bookmarksCount": 11,
+    "addedBookmarks": 11,
+    "updatedBookmarks": 0,
+    "deletedBookmarks": 0,
+    "fileSize": "15.3 KB",
+    "fileName": "omnimark-incremental-2026-10-03T00-22-46.json",
+    "status": "success",
+    "message": "增量备份成功：+11 条新增，~0 条更新，-0 条移除，已保存至 OneDrive",
+    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-03T00-22-46.json 并更新云端索引)"
+  },
+  {
+    "id": "bk-log-init-1",
+    "timestamp": "2026-10-02T21:22:46.924Z",
+    "type": "incremental",
+    "trigger": "manual",
+    "bookmarksCount": 11,
+    "addedBookmarks": 11,
+    "updatedBookmarks": 0,
+    "deletedBookmarks": 0,
+    "fileSize": "4.8 KB",
+    "fileName": "omnimark-incremental-latest.json",
+    "status": "success",
+    "message": "初次全量基线快照创建完成，已通过 Microsoft Graph API 写入 OneDrive",
+    "graphStatus": "HTTP 201 Created (OneDrive /Apps/OmniMark/Backups)"
+  }
+]
