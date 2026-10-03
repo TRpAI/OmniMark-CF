@@ -36,98 +36,133 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
   }
 
   return (
-    <div
-      onClick={handleOpenLink}
-      className="group relative flex flex-col justify-between p-4 rounded-2xl bg-white dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800/80 hover:border-indigo-400 dark:hover:border-indigo-500/60 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden"
-    >
-      {/* Top section: Icon & Details */}
-      <div>
-        <div className="flex items-start justify-between gap-3 mb-2.5">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Favicon container */}
-            <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200/50 dark:border-zinc-700/50 group-hover:scale-105 transition-transform">
-              {bookmark.favicon && !imgError ? (
-                <img
-                  src={bookmark.favicon}
-                  alt=""
-                  referrerPolicy="no-referrer"
-                  onError={() => setImgError(true)}
-                  className="w-6 h-6 object-contain rounded"
-                />
-              ) : (
-                <Globe className="w-5 h-5 text-indigo-500" />
-              )}
-            </div>
-
-            {/* Title & Hostname */}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                  {bookmark.title}
-                </h3>
-                {bookmark.isPinned && (
-                  <Pin className="w-3.5 h-3.5 text-amber-500 shrink-0 fill-amber-500/20" />
-                )}
-              </div>
-              <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate mt-0.5">
-                {hostname}
-              </p>
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={handleCopy}
-              title="复制网址"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={handleOpenLink}
-              title="在新标签页打开"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Description */}
-        {bookmark.description && (
-          <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed mb-3">
-            {bookmark.description}
-          </p>
-        )}
-      </div>
-
-      {/* Bottom section: Tags & Clicks */}
-      <div className="flex items-center justify-between gap-2 pt-2 mt-auto border-t border-zinc-100 dark:border-zinc-800/60 text-xs">
-        {/* Tags */}
-        <div className="flex items-center gap-1.5 flex-wrap overflow-hidden">
-          {bookmark.tags && bookmark.tags.length > 0 ? (
-            bookmark.tags.slice(0, 3).map((tag, i) => (
-              <span
-                key={i}
-                className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] font-medium"
-              >
-                {tag}
-              </span>
-            ))
+    <>
+      {/* 1. 移动端窄屏模式：和常用置顶完全一致的紧凑样式 (Icon + Title 单行胶囊卡片) */}
+      <div
+        onClick={handleOpenLink}
+        title={`${bookmark.title}\n${bookmark.url}`}
+        className="group sm:hidden flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/95 dark:bg-zinc-900/95 border border-zinc-200/80 dark:border-zinc-800/80 hover:border-indigo-400 dark:hover:border-indigo-500/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden select-none"
+      >
+        {/* Site Icon */}
+        <div className="w-5 h-5 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200/50 dark:border-zinc-700/50 group-hover:scale-105 transition-transform">
+          {bookmark.favicon && !imgError ? (
+            <img
+              src={bookmark.favicon}
+              alt=""
+              referrerPolicy="no-referrer"
+              onError={() => setImgError(true)}
+              className="w-3.5 h-3.5 object-contain rounded"
+            />
           ) : (
-            <span className="text-zinc-300 dark:text-zinc-600 text-[11px]">—</span>
+            <Globe className="w-3 h-3 text-indigo-500" />
           )}
         </div>
 
-        {/* Click counter */}
-        {settings.enableClickCounter && (
-          <div className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500 text-[11px] shrink-0">
-            <Eye className="w-3 h-3" />
-            <span>{bookmark.clickCount || 0}</span>
-          </div>
+        {/* Site Name Only */}
+        <span className="text-[11px] font-medium text-zinc-800 dark:text-zinc-200 truncate flex-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+          {bookmark.title}
+        </span>
+
+        {bookmark.isPinned && (
+          <Pin className="w-2.5 h-2.5 text-amber-500 shrink-0 fill-amber-500/20" />
         )}
       </div>
-    </div>
+
+      {/* 2. 桌面端宽屏模式：保持完整信息卡片 (描述、标签、域名与悬浮操作) */}
+      <div
+        onClick={handleOpenLink}
+        title={`${bookmark.title}\n${bookmark.url}${bookmark.description ? '\n' + bookmark.description : ''}`}
+        className="group relative hidden sm:flex flex-col justify-between p-4 rounded-2xl bg-white dark:bg-zinc-900/90 border border-zinc-200/80 dark:border-zinc-800/80 hover:border-indigo-400 dark:hover:border-indigo-500/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer overflow-hidden"
+      >
+        {/* Top section: Icon & Details */}
+        <div>
+          <div className="flex items-start justify-between gap-3 mb-2.5">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              {/* Favicon container */}
+              <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200/50 dark:border-zinc-700/50 group-hover:scale-105 transition-transform">
+                {bookmark.favicon && !imgError ? (
+                  <img
+                    src={bookmark.favicon}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    onError={() => setImgError(true)}
+                    className="w-6 h-6 object-contain rounded"
+                  />
+                ) : (
+                  <Globe className="w-5 h-5 text-indigo-500" />
+                )}
+              </div>
+
+              {/* Title & Hostname */}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1">
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    {bookmark.title}
+                  </h3>
+                  {bookmark.isPinned && (
+                    <Pin className="w-3 h-3 text-amber-500 shrink-0 fill-amber-500/20" />
+                  )}
+                </div>
+                <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate mt-0.5">
+                  {hostname}
+                </p>
+              </div>
+            </div>
+
+            {/* Action buttons (Desktop hover) */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={handleCopy}
+                title="复制网址"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </button>
+              <button
+                onClick={handleOpenLink}
+                title="在新标签页打开"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Description */}
+          {bookmark.description && (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 line-clamp-2 leading-relaxed mt-2 mb-3">
+              {bookmark.description}
+            </p>
+          )}
+        </div>
+
+        {/* Bottom section: Tags & Clicks */}
+        <div className="flex items-center justify-between gap-2 pt-2 mt-auto border-t border-zinc-100 dark:border-zinc-800/60 text-xs">
+          {/* Tags */}
+          <div className="flex items-center gap-1.5 flex-wrap overflow-hidden">
+            {bookmark.tags && bookmark.tags.length > 0 ? (
+              bookmark.tags.slice(0, 3).map((tag, i) => (
+                <span
+                  key={i}
+                  className="px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 text-[11px] font-medium"
+                >
+                  {tag}
+                </span>
+              ))
+            ) : (
+              <span className="text-zinc-300 dark:text-zinc-600 text-[11px]">—</span>
+            )}
+          </div>
+
+          {/* Click counter */}
+          {settings.enableClickCounter && (
+            <div className="flex items-center gap-1 text-zinc-400 dark:text-zinc-500 text-[11px] shrink-0">
+              <Eye className="w-3 h-3" />
+              <span>{bookmark.clickCount || 0}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
   );
 };

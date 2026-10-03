@@ -26,16 +26,16 @@ export const SearchBar: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto mb-6 px-3 sm:px-4">
+    <div className="w-full max-w-3xl mx-auto mb-3.5 sm:mb-6 px-3 sm:px-4">
       {/* Search Engine Switcher Tabs */}
-      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2.5 overflow-x-auto py-1 scrollbar-none">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2 sm:mb-2.5 overflow-x-auto py-0.5 sm:py-1 scrollbar-none">
         {engines.map((engine) => {
           const isActive = engine.id === currentEngine?.id;
           return (
             <button
               key={engine.id}
               onClick={() => setSelectedEngine(engine.id)}
-              className={`px-2.5 sm:px-3.5 py-1 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap cursor-pointer ${
                 isActive
                   ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
@@ -49,14 +49,14 @@ export const SearchBar: React.FC = () => {
 
       {/* Main Search Input */}
       <div
-        className={`relative flex items-center w-full rounded-2xl bg-white dark:bg-zinc-900 border transition-all duration-200 shadow-sm ${
+        className={`relative flex items-center w-full rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-900 border transition-all duration-200 shadow-sm ${
           isFocused
             ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-md'
             : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
         }`}
       >
-        <div className="pl-3.5 sm:pl-4.5 pr-2 text-zinc-400 shrink-0">
-          <Search className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-indigo-500" />
+        <div className="pl-3 sm:pl-4.5 pr-1.5 sm:pr-2 text-zinc-400 shrink-0">
+          <Search className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500" />
         </div>
 
         <input
@@ -67,7 +67,7 @@ export const SearchBar: React.FC = () => {
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           placeholder={currentEngine ? currentEngine.placeholder : '搜索书签或全网...'}
-          className="w-full py-3.5 sm:py-4 text-sm sm:text-base bg-transparent text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none"
+          className="w-full py-2.5 sm:py-4 text-xs sm:text-base bg-transparent text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none"
         />
 
         {searchQuery && (

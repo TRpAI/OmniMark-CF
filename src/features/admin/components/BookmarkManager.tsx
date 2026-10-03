@@ -202,8 +202,85 @@ export const BookmarkManager: React.FC = () => {
         </button>
       </div>
 
-      {/* Bookmarks Table/List */}
-      <div className="rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
+      {/* Bookmarks Display: Mobile Compact Cards (< md) & Desktop Table (>= md) */}
+      {/* 1. Mobile Compact Cards */}
+      <div className="md:hidden space-y-2.5">
+        {filtered.length === 0 ? (
+          <div className="p-8 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+            未找到相关书签
+          </div>
+        ) : (
+          filtered.map((bm) => {
+            const category = categories.find((c) => c.id === bm.categoryId);
+            return (
+              <div
+                key={bm.id}
+                className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs flex items-center justify-between gap-2.5"
+              >
+                {/* Left: Favicon & Info */}
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                    {bm.favicon ? (
+                      <img src={bm.favicon} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />
+                    ) : (
+                      <Globe className="w-4 h-4 text-indigo-500" />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-white truncate">
+                        {bm.title}
+                      </h4>
+                      {bm.isPinned && (
+                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500">
+                          <Pin className="w-3 h-3 fill-amber-500/20" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 mt-0.5 truncate">
+                      <span>{category?.name || '默认'}</span>
+                      <span>·</span>
+                      <span className="truncate">{bm.url.replace(/^https?:\/\//, '')}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Icon Buttons */}
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => handleTogglePin(bm)}
+                    title={bm.isPinned ? '取消置顶' : '置顶'}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      bm.isPinned
+                        ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
+                        : 'text-zinc-300 dark:text-zinc-600 hover:text-zinc-500'
+                    }`}
+                  >
+                    <Pin className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => openEditModal(bm)}
+                    className="p-1.5 text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
+                    title="编辑"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmBm(bm)}
+                    className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                    title="删除"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* 2. Desktop Table (>= md) */}
+      <div className="hidden md:block rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>

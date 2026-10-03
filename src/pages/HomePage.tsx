@@ -23,11 +23,11 @@ export const HomePage: React.FC = () => {
         )}
 
         {/* Hero Section */}
-        <section className="pt-8 sm:pt-10 pb-4 text-center px-4">
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-1.5">
+        <section className="pt-4 sm:pt-10 pb-2 sm:pb-4 text-center px-4">
+          <h1 className="text-xl sm:text-4xl font-extrabold tracking-tight text-zinc-900 dark:text-white mb-1">
             {settings.title || 'OmniMark 站点导航'}
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
+          <p className="text-[11px] sm:text-sm text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
             {settings.subtitle || '高效、清爽、可自建的现代书签与导航系统'}
           </p>
         </section>
