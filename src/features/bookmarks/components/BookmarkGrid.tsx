@@ -1,5 +1,5 @@
-import React from 'react';
-import { Pin } from 'lucide-react';
+import React, { useState } from 'react';
+import { Pin, ChevronDown, ChevronUp } from 'lucide-react';
 import { BookmarkCard } from './BookmarkCard';
 import { PinnedBookmarkCard } from './PinnedBookmarkCard';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -9,6 +9,18 @@ import { renderCategoryIcon } from '../../../utils/iconMap';
 export const BookmarkGrid: React.FC = () => {
   const { bookmarks, categories, activeCategoryId, searchQuery, settings, setSearchQuery, setActiveCategory } =
     useBookmarkStore();
+
+  // Local state for expanded categories in grouped mode
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  // Local state for expanded bookmarks in single category / search mode
+  const [isExpandedSingle, setIsExpandedSingle] = useState(false);
+
+  const toggleCategoryExpand = (catId: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [catId]: !prev[catId],
+    }));
+  };
 
   // Filter & Rank bookmarks
   const query = searchQuery.toLowerCase().trim();
@@ -74,6 +86,23 @@ export const BookmarkGrid: React.FC = () => {
   // If active category is 'all' and not searching, show grouped by categories
   const showGrouped = activeCategoryId === 'all' && !query;
 
+  // Limits configured in backend settings
+  const perCategoryLimit =
+    settings.maxBookmarksPerCategory && settings.maxBookmarksPerCategory > 0
+      ? settings.maxBookmarksPerCategory
+      : 0;
+
+  const totalLimit =
+    settings.maxTotalBookmarks && settings.maxTotalBookmarks > 0
+      ? settings.maxTotalBookmarks
+      : 0;
+
+  // Single category / search view bookmarks slicing
+  const hasMoreSingle = totalLimit > 0 && filtered.length > totalLimit;
+  const displayFiltered = hasMoreSingle && !isExpandedSingle
+    ? filtered.slice(0, totalLimit)
+    : filtered;
+
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-4 sm:space-y-8">
       {/* 1. 常用置顶栏 (Quick Launch Bar: Icon + Title) */}
@@ -105,6 +134,12 @@ export const BookmarkGrid: React.FC = () => {
           const catBookmarks = filtered.filter((b) => b.categoryId === cat.id);
           if (catBookmarks.length === 0) return null;
 
+          const isExpanded = !!expandedCategories[cat.id];
+          const hasMore = perCategoryLimit > 0 && catBookmarks.length > perCategoryLimit;
+          const displayBookmarks = hasMore && !isExpanded
+            ? catBookmarks.slice(0, perCategoryLimit)
+            : catBookmarks;
+
           return (
             <section key={cat.id} id={`category-${cat.id}`} className="scroll-mt-24">
               <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3.5 pb-1 sm:pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
@@ -118,40 +153,126 @@ export const BookmarkGrid: React.FC = () => {
                   <span className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono shrink-0">
                     {catBookmarks.length}
                   </span>
+                  {hasMore && !isExpanded && (
+                    <span className="hidden sm:inline-block text-[11px] text-zinc-400">
+                      (已显示前 {perCategoryLimit} 项)
+                    </span>
+                  )}
                 </div>
 
-                <button
-                  onClick={() => setActiveCategory(cat.id)}
-                  className="text-[11px] sm:text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer shrink-0"
-                >
-                  仅看此分类 &rarr;
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {hasMore && (
+                    <button
+                      onClick={() => toggleCategoryExpand(cat.id)}
+                      className="inline-flex items-center gap-1 text-[11px] sm:text-xs font-medium text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 cursor-pointer"
+                    >
+                      {isExpanded ? (
+                        <>
+                          <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span>收起</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span>展开全部 (+{catBookmarks.length - perCategoryLimit})</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setActiveCategory(cat.id)}
+                    className="text-[11px] sm:text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                  >
+                    仅看此分类 &rarr;
+                  </button>
+                </div>
               </div>
 
               {/* 移动端 2 列紧凑胶囊网格 (和常用置顶样式完全统一) */}
               <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-4">
-                {catBookmarks.map((bm) => (
+                {displayBookmarks.map((bm) => (
                   <BookmarkCard key={bm.id} bookmark={bm} />
                 ))}
               </div>
+
+              {/* 展开更多 / 收起 底部快捷按钮 */}
+              {hasMore && (
+                <div className="mt-2.5 sm:mt-3 flex justify-center">
+                  <button
+                    onClick={() => toggleCategoryExpand(cat.id)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 sm:px-4 sm:py-1.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-medium bg-zinc-100/90 hover:bg-zinc-200/90 dark:bg-zinc-800/90 dark:hover:bg-zinc-700/90 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span>收起部分书签 (保留前 {perCategoryLimit} 个)</span>
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                        <span>展开查看剩余 {catBookmarks.length - perCategoryLimit} 个书签 (共 {catBookmarks.length} 个)</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </section>
           );
         })
       ) : (
         <section>
           <div className="flex items-center justify-between mb-2 sm:mb-4 pb-1 sm:pb-2 border-b border-zinc-200/60 dark:border-zinc-800/60">
-            <h2 className="text-xs sm:text-base font-bold text-zinc-900 dark:text-white">
-              {query
-                ? `搜索结果 (${filtered.length})`
-                : categories.find((c) => c.id === activeCategoryId)?.name || '全部书签'}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs sm:text-base font-bold text-zinc-900 dark:text-white">
+                {query
+                  ? `搜索结果 (${filtered.length})`
+                  : categories.find((c) => c.id === activeCategoryId)?.name || '全部书签'}
+              </h2>
+              {hasMoreSingle && !isExpandedSingle && (
+                <span className="text-[11px] text-zinc-400">
+                  (已显示前 {totalLimit} 项)
+                </span>
+              )}
+            </div>
+
+            {activeCategoryId !== 'all' && (
+              <button
+                onClick={() => setActiveCategory('all')}
+                className="text-[11px] sm:text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                &larr; 返回全部分类
+              </button>
+            )}
           </div>
+
           {/* 移动端 2 列紧凑胶囊网格 (和常用置顶样式完全统一) */}
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-4">
-            {filtered.map((bm) => (
+            {displayFiltered.map((bm) => (
               <BookmarkCard key={bm.id} bookmark={bm} />
             ))}
           </div>
+
+          {/* 单分类/搜索列表展开全部按钮 */}
+          {hasMoreSingle && (
+            <div className="mt-3 sm:mt-4 flex justify-center">
+              <button
+                onClick={() => setIsExpandedSingle(!isExpandedSingle)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-medium bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 transition-colors cursor-pointer"
+              >
+                {isExpandedSingle ? (
+                  <>
+                    <ChevronUp className="w-3.5 h-3.5" />
+                    <span>收起展示 (保留前 {totalLimit} 个)</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                    <span>展开剩余 {filtered.length - totalLimit} 个书签 (共 {filtered.length} 个)</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </section>
       )}
     </div>

@@ -54,6 +54,8 @@ export interface SiteSettings {
   announcement?: string;
   enableClickCounter: boolean;
   enablePinnedSection: boolean;
+  maxBookmarksPerCategory?: number; // 首页每个分类默认最多展示书签数，0 为不限制
+  maxTotalBookmarks?: number;       // 首页单分类/总列表默认最多展示书签数，0 为不限制
   searchEngines: SearchEngine[];
   defaultSearchEngineId: string;
 }

@@ -42,10 +42,12 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   title: 'OmniMark 导航',
   subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
   logoText: 'OmniMark',
-  footerText: 'Powered by OmniMark · Cloudflare Pages + Workers + D1 Ready',
-  announcement: '欢迎使用 OmniMark！可自由切换分类与搜索引擎，登录管理后台可导入导出及同步 Cloudflare D1。',
+  footerText: 'Powered by OmniMark · 高性能原子存储与现代化书签管理系统',
+  announcement: '欢迎使用 OmniMark！可自由切换分类与搜索引擎，登录管理后台可导入导出及设置书签展示规则。',
   enableClickCounter: true,
   enablePinnedSection: true,
+  maxBookmarksPerCategory: 0, // 0 为不限制（展示全部）
+  maxTotalBookmarks: 0,       // 0 为不限制（展示全部）
   searchEngines: DEFAULT_SEARCH_ENGINES,
   defaultSearchEngineId: 'google',
 };

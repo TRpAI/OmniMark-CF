@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server, LayoutGrid } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { SearchEngine } from '../../../../packages/shared/types';
@@ -19,6 +19,8 @@ export const SettingsManager: React.FC = () => {
     enablePinnedSection: settings.enablePinnedSection ?? true,
     enableClickCounter: settings.enableClickCounter ?? true,
     defaultSearchEngineId: settings.defaultSearchEngineId || 'google',
+    maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
+    maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
   });
 
   const [engines, setEngines] = useState<SearchEngine[]>(settings.searchEngines || []);
@@ -30,6 +32,22 @@ export const SettingsManager: React.FC = () => {
   });
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    setFormData({
+      title: settings.title || 'OmniMark 站点导航',
+      subtitle: settings.subtitle || '高效、清爽、可自建的现代书签与导航系统',
+      logoText: settings.logoText || 'OmniMark',
+      footerText: settings.footerText || 'OmniMark 现代书签与导航管理系统',
+      announcement: settings.announcement || '',
+      enablePinnedSection: settings.enablePinnedSection ?? true,
+      enableClickCounter: settings.enableClickCounter ?? true,
+      defaultSearchEngineId: settings.defaultSearchEngineId || 'google',
+      maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
+      maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
+    });
+    setEngines(settings.searchEngines || []);
+  }, [settings]);
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -38,7 +56,7 @@ export const SettingsManager: React.FC = () => {
         ...formData,
         searchEngines: engines,
       });
-      showToast('站点设置保存成功', 'success');
+      showToast('站点设置保存成功，首页已即时应用', 'success');
     } catch (err: any) {
       showToast(err.message || '保存失败', 'error');
     } finally {
@@ -80,7 +98,7 @@ export const SettingsManager: React.FC = () => {
             全局站点设置
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            自定义站点标题、页脚、首页特色栏目以及搜索引擎配置
+            自定义站点标题、页脚、首页书签显示数量上限、特色栏目以及搜索引擎配置
           </p>
         </div>
       </div>
@@ -153,6 +171,132 @@ export const SettingsManager: React.FC = () => {
               onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
               className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
             />
+          </div>
+        </div>
+
+        {/* 首页书签展示数量配置 (新功能) */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-5">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                首页书签显示数量设置
+              </h4>
+            </div>
+            <span className="text-xs text-zinc-400">控制首页内容密度与分页</span>
+          </div>
+
+          {/* 1. 分组模式：每分类最多显示数量 */}
+          <div className="space-y-2.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div>
+                <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                  全部分类分组展示时：每分类默认最多显示书签数
+                </label>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  设为 0 表示不限制（展示该分类下全部书签）；设为具体数值时，超出部分提供「展开查看更多」按钮
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={formData.maxBookmarksPerCategory}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxBookmarksPerCategory: Math.max(0, parseInt(e.target.value) || 0),
+                    })
+                  }
+                  className="w-20 px-3 py-1.5 text-center text-sm font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                />
+                <span className="text-xs text-zinc-500">个</span>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] text-zinc-400 mr-1">快捷预设:</span>
+              {[
+                { label: '不限 (全部)', value: 0 },
+                { label: '8 个 (精简)', value: 8 },
+                { label: '12 个 (推荐)', value: 12 },
+                { label: '16 个', value: 16 },
+                { label: '24 个', value: 24 },
+              ].map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, maxBookmarksPerCategory: preset.value })
+                  }
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    formData.maxBookmarksPerCategory === preset.value
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2.5">
+            {/* 2. 单分类/搜索列表模式：最大显示数量 */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+              <div>
+                <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
+                  点击进入单分类 / 搜索结果时：默认最多显示书签数
+                </label>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  在切换到特定单分类标签或按关键词搜索时生效，0 表示展示全部
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={formData.maxTotalBookmarks}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maxTotalBookmarks: Math.max(0, parseInt(e.target.value) || 0),
+                    })
+                  }
+                  className="w-20 px-3 py-1.5 text-center text-sm font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                />
+                <span className="text-xs text-zinc-500">个</span>
+              </div>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] text-zinc-400 mr-1">快捷预设:</span>
+              {[
+                { label: '不限 (全部)', value: 0 },
+                { label: '24 个', value: 24 },
+                { label: '48 个', value: 48 },
+                { label: '96 个', value: 96 },
+              ].map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  onClick={() =>
+                    setFormData({ ...formData, maxTotalBookmarks: preset.value })
+                  }
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                    formData.maxTotalBookmarks === preset.value
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
