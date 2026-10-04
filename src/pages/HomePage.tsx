@@ -3,6 +3,7 @@ import { SearchBar } from '../components/SearchBar';
 import { CategoryTabs } from '../features/categories/components/CategoryTabs';
 import { BookmarkGrid } from '../features/bookmarks/components/BookmarkGrid';
 import { CustomPageViewer } from '../features/pages/components/CustomPageViewer';
+import { SiteFeedViewer } from '../features/feed/components/SiteFeedViewer';
 import { BookmarkDetailModal } from '../features/bookmarks/components/BookmarkDetailModal';
 import { useBookmarkStore } from '../stores/bookmark.store';
 import { BrandLogo } from '../components/BrandLogo';
@@ -34,17 +35,19 @@ export const HomePage: React.FC = () => {
           </p>
         </section>
 
-        {/* Search Engine & Filter Bar (hide when viewing custom page to keep it clean) */}
+        {/* Search Engine & Filter Bar (hide when viewing custom page / feed to keep it clean) */}
         {!activePageId && <SearchBar />}
 
         {/* Category & Custom Page Navigation Pills */}
         <CategoryTabs />
 
-        {/* Dynamic Content: Custom Page OR Bookmarks Grid */}
+        {/* Dynamic Content: Site Feed OR Custom Page OR Bookmarks Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
           </div>
+        ) : activePageId === 'site-feed' ? (
+          <SiteFeedViewer />
         ) : activePageId ? (
           <CustomPageViewer />
         ) : (

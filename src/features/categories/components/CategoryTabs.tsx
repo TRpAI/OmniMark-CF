@@ -1,5 +1,5 @@
 import React from 'react';
-import { Layers, Lock, ExternalLink } from 'lucide-react';
+import { Layers, Lock, ExternalLink, Sparkles, Rss } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { renderCategoryIcon } from '../../../utils/iconMap';
 
@@ -33,6 +33,26 @@ export const CategoryTabs: React.FC = () => {
             {totalCount}
           </span>
         </button>
+
+        {/* 站点快讯 / 最新动态 Feed Tab (精美聚合动态) */}
+        <button
+          onClick={() => setActivePage('site-feed')}
+          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer relative group ${
+            activePageId === 'site-feed'
+              ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs'
+              : 'text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50/60 dark:hover:bg-indigo-950/40'
+          }`}
+        >
+          <Sparkles className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activePageId === 'site-feed' ? 'text-amber-300' : 'text-amber-500'}`} />
+          <span>站点快讯</span>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+          </span>
+        </button>
+
+        {/* Divider */}
+        <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-0.5 shrink-0" />
 
         {/* Categories Tabs */}
         {categories.map((cat) => {
