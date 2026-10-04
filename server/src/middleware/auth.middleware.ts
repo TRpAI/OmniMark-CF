@@ -27,3 +27,21 @@ export async function requireAuth(req: AuthenticatedRequest, res: Response, next
     res.status(401).json({ success: false, error: err.message || '鉴权失败' });
   }
 }
+
+export async function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : (req.headers['x-auth-token'] as string);
+
+  if (token) {
+    try {
+      const user = await authService.validateToken(token);
+      if (user) {
+        req.user = user;
+      }
+    } catch {
+      // Token expired or invalid, ignore for optional auth
+    }
+  }
+  next();
+}
+

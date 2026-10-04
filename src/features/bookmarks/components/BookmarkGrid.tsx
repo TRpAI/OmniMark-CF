@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Pin, ChevronDown, ChevronUp, Lock } from 'lucide-react';
 import { BookmarkCard } from './BookmarkCard';
 import { PinnedBookmarkCard } from './PinnedBookmarkCard';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -119,8 +119,8 @@ export const BookmarkGrid: React.FC = () => {
               ({pinnedBookmarks.length})
             </span>
           </div>
-          {/* Quick-Launch Grid: 移动端 2 列紧凑胶囊网格 */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-1.5 sm:gap-2.5">
+          {/* Quick-Launch Grid: 移动端 2 列舒适胶囊网格 (再宽松舒适的间距) */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-2.5">
             {pinnedBookmarks.map((bm) => (
               <PinnedBookmarkCard key={`pinned-${bm.id}`} bookmark={bm} />
             ))}
@@ -150,6 +150,11 @@ export const BookmarkGrid: React.FC = () => {
                   <h2 className="text-xs sm:text-base font-bold text-zinc-900 dark:text-white truncate">
                     {cat.name}
                   </h2>
+                  {cat.isPrivate && (
+                    <span title="私密分类" className="p-0.5 text-amber-500/90 dark:text-amber-400/90 shrink-0">
+                      <Lock className="w-3 h-3" />
+                    </span>
+                  )}
                   <span className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono shrink-0">
                     {catBookmarks.length}
                   </span>
@@ -188,8 +193,8 @@ export const BookmarkGrid: React.FC = () => {
                 </div>
               </div>
 
-              {/* 移动端 2 列紧凑胶囊网格 (和常用置顶样式完全统一) */}
-              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-4">
+              {/* 移动端 2 列舒适胶囊网格 (和常用置顶样式完全统一，宽松透气) */}
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
                 {displayBookmarks.map((bm) => (
                   <BookmarkCard key={bm.id} bookmark={bm} />
                 ))}
@@ -245,8 +250,8 @@ export const BookmarkGrid: React.FC = () => {
             )}
           </div>
 
-          {/* 移动端 2 列紧凑胶囊网格 (和常用置顶样式完全统一) */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-1.5 sm:gap-4">
+          {/* 移动端 2 列舒适胶囊网格 (和常用置顶样式完全统一) */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-4">
             {displayFiltered.map((bm) => (
               <BookmarkCard key={bm.id} bookmark={bm} />
             ))}

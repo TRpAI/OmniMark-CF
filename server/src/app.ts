@@ -5,6 +5,7 @@ import bookmarkRoutes from './routes/bookmark.routes';
 import categoryRoutes from './routes/category.routes';
 import settingsRoutes from './routes/settings.routes';
 import uploadRoutes from './routes/upload.routes';
+import pageRoutes from './routes/page.routes';
 import { securityHeaders } from './middleware/security.middleware';
 import { jsonDb } from './repositories/json.repository';
 
@@ -67,6 +68,7 @@ app.post('/api/health/repair', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/bookmarks', bookmarkRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/pages', pageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/upload', uploadRoutes);
 

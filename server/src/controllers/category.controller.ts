@@ -4,7 +4,8 @@ import { categoryService } from '../services/category.service';
 export class CategoryController {
   async list(req: Request, res: Response): Promise<void> {
     try {
-      const categories = await categoryService.list();
+      const isAuthenticated = Boolean((req as any).user);
+      const categories = await categoryService.list(isAuthenticated);
       res.json({ success: true, data: categories });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

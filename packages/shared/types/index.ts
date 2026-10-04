@@ -21,6 +21,7 @@ export interface Category {
   icon: string;
   sortOrder: number;
   createdAt: string;
+  isPrivate?: boolean;
 }
 
 export interface Bookmark {
@@ -34,6 +35,21 @@ export interface Bookmark {
   clickCount: number;
   sortOrder: number;
   isPinned: boolean;
+  isPrivate?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomPage {
+  id: string;
+  title: string;
+  slug?: string;
+  icon?: string;
+  content: string;
+  linkUrl?: string;
+  openInNewTab?: boolean;
+  isPrivate?: boolean;
+  sortOrder: number;
   createdAt: string;
   updatedAt: string;
 }

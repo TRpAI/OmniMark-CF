@@ -2,16 +2,17 @@ import React from 'react';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryTabs } from '../features/categories/components/CategoryTabs';
 import { BookmarkGrid } from '../features/bookmarks/components/BookmarkGrid';
+import { CustomPageViewer } from '../features/pages/components/CustomPageViewer';
 import { useBookmarkStore } from '../stores/bookmark.store';
 import { BrandLogo } from '../components/BrandLogo';
 import { Megaphone, Cloud, Zap, Database, ShieldCheck } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
-  const { settings, isLoading } = useBookmarkStore();
+  const { settings, isLoading, activePageId } = useBookmarkStore();
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-between">
-      <main className="pb-12">
+    <div className="min-h-screen flex flex-col justify-between">
+      <main className="pb-16 sm:pb-20">
         {/* Optional Announcement Banner */}
         {settings.announcement && (
           <div className="w-full bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 py-2 px-4 text-center">
@@ -32,24 +33,26 @@ export const HomePage: React.FC = () => {
           </p>
         </section>
 
-        {/* Search Engine & Filter Bar */}
-        <SearchBar />
+        {/* Search Engine & Filter Bar (hide when viewing custom page to keep it clean) */}
+        {!activePageId && <SearchBar />}
 
-        {/* Category Navigation Pills */}
+        {/* Category & Custom Page Navigation Pills */}
         <CategoryTabs />
 
-        {/* Bookmarks Grid / Pinned Strip */}
+        {/* Dynamic Content: Custom Page OR Bookmarks Grid */}
         {isLoading ? (
           <div className="flex items-center justify-center py-24">
             <div className="w-8 h-8 rounded-full border-2 border-indigo-600 border-t-transparent animate-spin" />
           </div>
+        ) : activePageId ? (
+          <CustomPageViewer />
         ) : (
           <BookmarkGrid />
         )}
       </main>
 
-      {/* Simplified Minimalist Footer with Icons */}
-      <footer className="border-t border-zinc-200/60 dark:border-zinc-800/60 bg-white/40 dark:bg-zinc-950/40 py-5 px-4 text-center text-xs text-zinc-400 dark:text-zinc-500">
+      {/* 固定底部页脚 (Fixed Bottom Footer) */}
+      <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md py-2.5 sm:py-3 px-4 text-center text-xs text-zinc-400 dark:text-zinc-500 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <BrandLogo size="sm" />

@@ -17,13 +17,15 @@ import { CategoryManager } from '../features/admin/components/CategoryManager';
 import { UserManager } from '../features/admin/components/UserManager';
 import { ImportExport } from '../features/admin/components/ImportExport';
 import { SettingsManager } from '../features/admin/components/SettingsManager';
+import { PageManager } from '../features/admin/components/PageManager';
+import { BookOpen } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
   const { adminTab, setAdminTab, setCurrentView } = useUiStore();
   const { user } = useAuthStore();
 
   const navItems: {
-    id: 'dashboard' | 'bookmarks' | 'categories' | 'users' | 'import-export' | 'settings';
+    id: 'dashboard' | 'bookmarks' | 'categories' | 'pages' | 'users' | 'import-export' | 'settings';
     label: string;
     icon: React.ElementType;
     badge?: string;
@@ -31,6 +33,7 @@ export const AdminPage: React.FC = () => {
     { id: 'dashboard', label: '控制面板', icon: LayoutDashboard },
     { id: 'bookmarks', label: '书签管理', icon: Bookmark },
     { id: 'categories', label: '分类管理', icon: Folder },
+    { id: 'pages', label: '自定义页面', icon: BookOpen },
     { id: 'users', label: '安全与存储', icon: Shield },
     { id: 'import-export', label: '导入与备份', icon: FileCode2, badge: 'OneDrive' },
     { id: 'settings', label: '全局设置', icon: Settings },
@@ -108,6 +111,7 @@ export const AdminPage: React.FC = () => {
           {adminTab === 'dashboard' && <Dashboard />}
           {adminTab === 'bookmarks' && <BookmarkManager />}
           {adminTab === 'categories' && <CategoryManager />}
+          {adminTab === 'pages' && <PageManager />}
           {adminTab === 'users' && <UserManager />}
           {adminTab === 'import-export' && <ImportExport />}
           {adminTab === 'settings' && <SettingsManager />}

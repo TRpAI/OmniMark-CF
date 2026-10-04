@@ -1,16 +1,19 @@
 import { create } from 'zustand';
-import { Bookmark, Category, SiteSettings, StatsData } from '../../packages/shared/types';
+import { Bookmark, Category, SiteSettings, StatsData, CustomPage } from '../../packages/shared/types';
 import { bookmarkApi } from '../api/bookmark.api';
 import { categoryApi } from '../api/category.api';
 import { settingsApi } from '../api/settings.api';
-import { DEFAULT_SETTINGS, INITIAL_BOOKMARKS, INITIAL_CATEGORIES } from '../../packages/shared/constants';
+import { pageApi } from '../api/page.api';
+import { DEFAULT_SETTINGS, INITIAL_BOOKMARKS, INITIAL_CATEGORIES, INITIAL_PAGES } from '../../packages/shared/constants';
 
 interface BookmarkState {
   bookmarks: Bookmark[];
   categories: (Category & { count?: number })[];
+  customPages: CustomPage[];
   settings: SiteSettings;
   stats: StatsData | null;
   activeCategoryId: string;
+  activePageId: string | null;
   searchQuery: string;
   selectedEngineId: string;
   isLoading: boolean;
@@ -19,20 +22,28 @@ interface BookmarkState {
   // Actions
   loadInitialData: () => Promise<void>;
   setActiveCategory: (id: string) => void;
+  setActivePage: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
   setSelectedEngine: (id: string) => void;
   recordBookmarkClick: (id: string) => Promise<void>;
 
-  // Management actions
+  // Bookmark actions
   createBookmark: (data: Partial<Bookmark>) => Promise<Bookmark>;
   updateBookmark: (id: string, data: Partial<Bookmark>) => Promise<Bookmark>;
   deleteBookmark: (id: string) => Promise<void>;
   reorderBookmarks: (items: { id: string; sortOrder: number; categoryId?: string }[]) => Promise<void>;
 
+  // Category actions
   createCategory: (data: Partial<Category>) => Promise<Category>;
   updateCategory: (id: string, data: Partial<Category>) => Promise<Category>;
   deleteCategory: (id: string, deleteBookmarks?: boolean) => Promise<void>;
   reorderCategories: (items: { id: string; sortOrder: number }[]) => Promise<void>;
+
+  // Custom Page actions
+  createCustomPage: (data: Partial<CustomPage>) => Promise<CustomPage>;
+  updateCustomPage: (id: string, data: Partial<CustomPage>) => Promise<CustomPage>;
+  deleteCustomPage: (id: string) => Promise<void>;
+  reorderCustomPages: (items: { id: string; sortOrder: number }[]) => Promise<void>;
 
   updateSettings: (settings: Partial<SiteSettings>) => Promise<void>;
   refreshStats: () => Promise<void>;
@@ -41,9 +52,11 @@ interface BookmarkState {
 export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   bookmarks: INITIAL_BOOKMARKS,
   categories: INITIAL_CATEGORIES,
+  customPages: INITIAL_PAGES,
   settings: DEFAULT_SETTINGS,
   stats: null,
   activeCategoryId: 'all',
+  activePageId: null,
   searchQuery: '',
   selectedEngineId: 'google',
   isLoading: false,
@@ -51,15 +64,17 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   loadInitialData: async () => {
     try {
-      const [bookmarks, categories, settings] = await Promise.all([
+      const [bookmarks, categories, settings, pages] = await Promise.all([
         bookmarkApi.list().catch(() => null),
         categoryApi.list().catch(() => null),
         settingsApi.getSettings().catch(() => null),
+        pageApi.list().catch(() => null),
       ]);
 
       set({
-        bookmarks: bookmarks && bookmarks.length > 0 ? bookmarks : get().bookmarks,
-        categories: categories && categories.length > 0 ? categories : get().categories,
+        bookmarks: bookmarks && Array.isArray(bookmarks) ? bookmarks : get().bookmarks,
+        categories: categories && Array.isArray(categories) ? categories : get().categories,
+        customPages: pages && Array.isArray(pages) ? pages : get().customPages,
         settings: settings || get().settings,
         selectedEngineId: (settings && settings.defaultSearchEngineId) || get().selectedEngineId,
         isLoading: false,
@@ -71,8 +86,9 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     }
   },
 
-  setActiveCategory: (id) => set({ activeCategoryId: id }),
-  setSearchQuery: (q) => set({ searchQuery: q }),
+  setActiveCategory: (id) => set({ activeCategoryId: id, activePageId: null }),
+  setActivePage: (id) => set({ activePageId: id, searchQuery: '' }),
+  setSearchQuery: (q) => set({ searchQuery: q, activePageId: null }),
   setSelectedEngine: (id) => set({ selectedEngineId: id }),
 
   recordBookmarkClick: async (id: string) => {
@@ -138,6 +154,33 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   reorderCategories: async (items) => {
     await categoryApi.reorder(items);
+    get().loadInitialData();
+  },
+
+  createCustomPage: async (data) => {
+    const created = await pageApi.create(data);
+    set((state) => ({ customPages: [...state.customPages, created] }));
+    return created;
+  },
+
+  updateCustomPage: async (id, data) => {
+    const updated = await pageApi.update(id, data);
+    set((state) => ({
+      customPages: state.customPages.map((p) => (p.id === id ? updated : p)),
+    }));
+    return updated;
+  },
+
+  deleteCustomPage: async (id) => {
+    await pageApi.delete(id);
+    set((state) => ({
+      customPages: state.customPages.filter((p) => p.id !== id),
+      activePageId: state.activePageId === id ? null : state.activePageId,
+    }));
+  },
+
+  reorderCustomPages: async (items) => {
+    await pageApi.reorder(items);
     get().loadInitialData();
   },
 

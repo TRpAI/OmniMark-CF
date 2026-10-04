@@ -7,12 +7,18 @@ export interface CreateCategoryDTO {
   name: string;
   icon?: string;
   sortOrder?: number;
+  isPrivate?: boolean;
 }
 
 export class CategoryService {
-  async list(): Promise<(Category & { count: number })[]> {
-    const categories = await categoryRepository.findAll();
-    const bookmarks = await bookmarkRepository.findAll();
+  async list(isAuthenticated = false): Promise<(Category & { count: number })[]> {
+    let categories = await categoryRepository.findAll();
+    let bookmarks = await bookmarkRepository.findAll();
+
+    if (!isAuthenticated) {
+      categories = categories.filter((c) => !c.isPrivate);
+      bookmarks = bookmarks.filter((b) => !b.isPrivate);
+    }
 
     const countMap: Record<string, number> = {};
     for (const b of bookmarks) {
@@ -38,6 +44,7 @@ export class CategoryService {
       name: data.name.trim(),
       icon: data.icon?.trim() || 'Folder',
       sortOrder,
+      isPrivate: Boolean(data.isPrivate),
       createdAt: new Date().toISOString(),
     };
 

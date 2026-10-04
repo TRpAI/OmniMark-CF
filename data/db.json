@@ -31,6 +31,14 @@
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
       "expiresAt": "2026-11-02T09:11:40.067Z",
       "createdAt": "2026-10-03T09:11:40.068Z"
+    },
+    {
+      "id": "sess-e34ed19e-3c9a-4d23-b97d-37e8a09a2a72",
+      "userId": "usr-admin-1",
+      "tokenHash": "7929c32204d30d2198471402badbaaf99177a08ed14d5253d95f0fdd66f14a31",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "expiresAt": "2026-11-03T04:29:13.950Z",
+      "createdAt": "2026-10-04T04:29:13.951Z"
     }
   ],
   "categories": [
@@ -326,5 +334,18 @@
     "defaultSearchEngineId": "google",
     "maxBookmarksPerCategory": 0,
     "maxTotalBookmarks": 0
-  }
+  },
+  "customPages": [
+    {
+      "id": "page-about",
+      "title": "关于本站",
+      "slug": "about",
+      "icon": "Info",
+      "content": "# 关于 OmniMark 导航\n\n欢迎使用 OmniMark！这是一个极简、现代、高效的书签导航系统。\n\n### 特性介绍\n- **原子化存储与云端备份**：支持轻量级 JSON 存储与 Microsoft OneDrive 增量快照同步。\n- **公开与私密书签**：支持将敏感站点或专属分类标记为私密，仅登录后可见。\n- **高度自定义**：支持多搜索引擎切换、自定义独立页面与备忘。\n- **多端响应式体验**：移动端专享紧凑双列胶囊样式，操作更舒适。",
+      "sortOrder": 1,
+      "isPrivate": false,
+      "createdAt": "2026-10-04T04:28:34.854Z",
+      "updatedAt": "2026-10-04T04:28:34.854Z"
+    }
+  ]
 }

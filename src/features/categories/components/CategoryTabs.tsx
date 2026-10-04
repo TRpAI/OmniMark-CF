@@ -1,10 +1,11 @@
 import React from 'react';
-import { Layers } from 'lucide-react';
+import { Layers, Lock, ExternalLink } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { renderCategoryIcon } from '../../../utils/iconMap';
 
 export const CategoryTabs: React.FC = () => {
-  const { categories, activeCategoryId, setActiveCategory, bookmarks } = useBookmarkStore();
+  const { categories, customPages, activeCategoryId, activePageId, setActiveCategory, setActivePage, bookmarks } =
+    useBookmarkStore();
 
   const totalCount = bookmarks.length;
 
@@ -15,7 +16,7 @@ export const CategoryTabs: React.FC = () => {
         <button
           onClick={() => setActiveCategory('all')}
           className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
-            activeCategoryId === 'all'
+            activeCategoryId === 'all' && !activePageId
               ? 'bg-indigo-600 text-white shadow-xs'
               : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80'
           }`}
@@ -24,7 +25,7 @@ export const CategoryTabs: React.FC = () => {
           <span>全部书签</span>
           <span
             className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full font-mono font-medium ${
-              activeCategoryId === 'all'
+              activeCategoryId === 'all' && !activePageId
                 ? 'bg-white/20 text-white'
                 : 'bg-zinc-200/80 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400'
             }`}
@@ -35,7 +36,7 @@ export const CategoryTabs: React.FC = () => {
 
         {/* Categories Tabs */}
         {categories.map((cat) => {
-          const isActive = activeCategoryId === cat.id;
+          const isActive = activeCategoryId === cat.id && !activePageId;
           const actualCount = bookmarks.filter((b) => b.categoryId === cat.id).length;
           const displayCount = actualCount > 0 ? actualCount : (cat.count || 0);
 
@@ -51,6 +52,11 @@ export const CategoryTabs: React.FC = () => {
             >
               {renderCategoryIcon(cat.icon, 'w-3.5 h-3.5 sm:w-4 sm:h-4')}
               <span>{cat.name}</span>
+              {cat.isPrivate && (
+                <span title="私密分类" className="p-0.5 text-amber-500/90 dark:text-amber-400/90">
+                  <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                </span>
+              )}
               <span
                 className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.2 sm:py-0.5 rounded-full font-mono font-medium ${
                   isActive
@@ -63,6 +69,49 @@ export const CategoryTabs: React.FC = () => {
             </button>
           );
         })}
+
+        {/* Custom Pages Tabs (分类导航栏自定义页面) */}
+        {customPages && customPages.length > 0 && (
+          <>
+            <div className="h-4 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 shrink-0" />
+            {customPages.map((page) => {
+              const isActive = activePageId === page.id;
+
+              const handleClick = () => {
+                if (page.linkUrl && page.openInNewTab) {
+                  window.open(page.linkUrl, '_blank', 'noopener,noreferrer');
+                } else if (page.linkUrl) {
+                  window.location.href = page.linkUrl;
+                } else {
+                  setActivePage(page.id);
+                }
+              };
+
+              return (
+                <button
+                  key={page.id}
+                  onClick={handleClick}
+                  className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all whitespace-nowrap cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800/80'
+                  }`}
+                >
+                  {renderCategoryIcon(page.icon || 'FileText', 'w-3.5 h-3.5 sm:w-4 sm:h-4')}
+                  <span>{page.title}</span>
+                  {page.isPrivate && (
+                    <span title="私密页面" className="p-0.5 text-amber-500/90 dark:text-amber-400/90">
+                      <Lock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                    </span>
+                  )}
+                  {page.linkUrl && (
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  )}
+                </button>
+              );
+            })}
+          </>
+        )}
       </div>
     </div>
   );

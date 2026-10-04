@@ -5,11 +5,15 @@ export class BookmarkController {
   async list(req: Request, res: Response): Promise<void> {
     try {
       const { categoryId, search, isPinned } = req.query;
-      const bookmarks = await bookmarkService.list({
-        categoryId: categoryId ? String(categoryId) : undefined,
-        search: search ? String(search) : undefined,
-        isPinned: isPinned !== undefined ? isPinned === 'true' : undefined,
-      });
+      const isAuthenticated = Boolean((req as any).user);
+      const bookmarks = await bookmarkService.list(
+        {
+          categoryId: categoryId ? String(categoryId) : undefined,
+          search: search ? String(search) : undefined,
+          isPinned: isPinned !== undefined ? isPinned === 'true' : undefined,
+        },
+        isAuthenticated
+      );
       res.json({ success: true, data: bookmarks });
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });

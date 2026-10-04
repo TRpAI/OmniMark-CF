@@ -13,11 +13,18 @@ export interface CreateBookmarkDTO {
   tags?: string[];
   sortOrder?: number;
   isPinned?: boolean;
+  isPrivate?: boolean;
 }
 
 export class BookmarkService {
-  async list(filter?: { categoryId?: string; search?: string; isPinned?: boolean }): Promise<Bookmark[]> {
+  async list(filter?: { categoryId?: string; search?: string; isPinned?: boolean }, isAuthenticated = false): Promise<Bookmark[]> {
     let list = await bookmarkRepository.findAll();
+    const categories = await categoryRepository.findAll();
+    const privateCategoryIds = new Set(categories.filter((c) => c.isPrivate).map((c) => c.id));
+
+    if (!isAuthenticated) {
+      list = list.filter((b) => !b.isPrivate && !privateCategoryIds.has(b.categoryId));
+    }
 
     if (filter?.categoryId && filter.categoryId !== 'all') {
       list = list.filter((b) => b.categoryId === filter.categoryId);
@@ -85,6 +92,7 @@ export class BookmarkService {
       clickCount: 0,
       sortOrder,
       isPinned: Boolean(data.isPinned),
+      isPrivate: Boolean(data.isPrivate),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };

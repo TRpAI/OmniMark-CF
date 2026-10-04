@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { categoryController } from '../controllers/category.controller';
-import { requireAuth } from '../middleware/auth.middleware';
+import { requireAuth, optionalAuth } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Public routes
-router.get('/', (req, res) => categoryController.list(req, res));
+// Public routes (with optional auth for private categories)
+router.get('/', optionalAuth, (req, res) => categoryController.list(req, res));
 
 // Protected admin routes
 router.post('/', requireAuth, (req, res) => categoryController.create(req, res));

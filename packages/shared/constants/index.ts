@@ -1,4 +1,4 @@
-import { Category, Bookmark, SiteSettings } from '../types';
+import { Category, Bookmark, SiteSettings, CustomPage } from '../types';
 
 export const DEFAULT_SEARCH_ENGINES = [
   {
@@ -253,3 +253,18 @@ export const INITIAL_BOOKMARKS: Bookmark[] = [
     updatedAt: new Date().toISOString(),
   },
 ];
+
+export const INITIAL_PAGES: CustomPage[] = [
+  {
+    id: 'page-about',
+    title: '关于本站',
+    slug: 'about',
+    icon: 'Info',
+    content: `# 关于 OmniMark 导航\n\n欢迎使用 OmniMark！这是一个极简、现代、高效的书签导航系统。\n\n### 特性介绍\n- **原子化存储与云端备份**：支持轻量级 JSON 存储与 Microsoft OneDrive 增量快照同步。\n- **公开与私密书签**：支持将敏感站点或专属分类标记为私密，仅登录后可见。\n- **高度自定义**：支持多搜索引擎切换、自定义独立页面与备忘。\n- **多端响应式体验**：移动端专享紧凑双列胶囊样式，操作更舒适。`,
+    sortOrder: 1,
+    isPrivate: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+

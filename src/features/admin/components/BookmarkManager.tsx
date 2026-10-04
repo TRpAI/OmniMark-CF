@@ -14,6 +14,7 @@ import {
   Folder,
   Tag,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -26,6 +27,7 @@ export const BookmarkManager: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [privacyFilter, setPrivacyFilter] = useState<'all' | 'public' | 'private'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isFetchingFavicon, setIsFetchingFavicon] = useState(false);
@@ -42,6 +44,7 @@ export const BookmarkManager: React.FC = () => {
     tags: '',
     sortOrder: 1,
     isPinned: false,
+    isPrivate: false,
   });
 
   const openAddModal = () => {
@@ -55,6 +58,7 @@ export const BookmarkManager: React.FC = () => {
       tags: '',
       sortOrder: bookmarks.length + 1,
       isPinned: false,
+      isPrivate: false,
     });
     setIsModalOpen(true);
   };
@@ -70,6 +74,7 @@ export const BookmarkManager: React.FC = () => {
       tags: (bm.tags || []).join(', '),
       sortOrder: bm.sortOrder,
       isPinned: Boolean(bm.isPinned),
+      isPrivate: Boolean(bm.isPrivate),
     });
     setIsModalOpen(true);
   };
@@ -114,6 +119,7 @@ export const BookmarkManager: React.FC = () => {
         .filter(Boolean),
       sortOrder: Number(formData.sortOrder) || 1,
       isPinned: formData.isPinned,
+      isPrivate: formData.isPrivate,
     };
 
     try {
@@ -158,7 +164,11 @@ export const BookmarkManager: React.FC = () => {
       b.url.toLowerCase().includes(search.toLowerCase()) ||
       b.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
     const matchesCat = selectedCategory === 'all' || b.categoryId === selectedCategory;
-    return matchesSearch && matchesCat;
+    const matchesPrivacy =
+      privacyFilter === 'all' ||
+      (privacyFilter === 'public' && !b.isPrivate) ||
+      (privacyFilter === 'private' && b.isPrivate);
+    return matchesSearch && matchesCat && matchesPrivacy;
   });
 
   return (
@@ -190,6 +200,17 @@ export const BookmarkManager: React.FC = () => {
                 {c.name} ({bookmarks.filter((b) => b.categoryId === c.id).length})
               </option>
             ))}
+          </select>
+
+          {/* Privacy Filter */}
+          <select
+            value={privacyFilter}
+            onChange={(e) => setPrivacyFilter(e.target.value as any)}
+            className="px-3 py-2 text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none"
+          >
+            <option value="all">全部可见性</option>
+            <option value="public">仅公开书签</option>
+            <option value="private">仅私密书签 (🔒)</option>
           </select>
         </div>
 
@@ -234,6 +255,11 @@ export const BookmarkManager: React.FC = () => {
                       {bm.isPinned && (
                         <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500">
                           <Pin className="w-3 h-3 fill-amber-500/20" />
+                        </span>
+                      )}
+                      {bm.isPrivate && (
+                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="私密书签">
+                          <Lock className="w-3 h-3" />
                         </span>
                       )}
                     </div>
@@ -336,6 +362,12 @@ export const BookmarkManager: React.FC = () => {
                           <div className="min-w-0 max-w-xs sm:max-w-md">
                             <div className="font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
                               <span>{bm.title}</span>
+                              {bm.isPrivate && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/60 shrink-0">
+                                  <Lock className="w-2.5 h-2.5" />
+                                  <span>私密</span>
+                                </span>
+                              )}
                               <a
                                 href={bm.url}
                                 target="_blank"
@@ -567,6 +599,20 @@ export const BookmarkManager: React.FC = () => {
                 />
                 <label htmlFor="isPinnedCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer">
                   设为首页置顶书签 (将在顶部常用区展示)
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="isPrivateCheck"
+                  checked={formData.isPrivate}
+                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="isPrivateCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>设为私密书签 (仅管理员登录后可见，未登录访客隐藏)</span>
                 </label>
               </div>
 

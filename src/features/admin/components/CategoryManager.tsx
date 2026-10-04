@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Edit2, Trash2, Folder, ArrowUp, ArrowDown, X, AlertTriangle, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Folder, ArrowUp, ArrowDown, X, AlertTriangle, Layers, Lock } from 'lucide-react';
 import { Category } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
@@ -19,6 +19,7 @@ export const CategoryManager: React.FC = () => {
     name: '',
     icon: 'Folder',
     sortOrder: 1,
+    isPrivate: false,
   });
 
   const openAddModal = () => {
@@ -27,6 +28,7 @@ export const CategoryManager: React.FC = () => {
       name: '',
       icon: 'Folder',
       sortOrder: categories.length + 1,
+      isPrivate: false,
     });
     setIsModalOpen(true);
   };
@@ -37,6 +39,7 @@ export const CategoryManager: React.FC = () => {
       name: cat.name,
       icon: cat.icon || 'Folder',
       sortOrder: cat.sortOrder,
+      isPrivate: Boolean(cat.isPrivate),
     });
     setIsModalOpen(true);
   };
@@ -54,6 +57,7 @@ export const CategoryManager: React.FC = () => {
           name: formData.name.trim(),
           icon: formData.icon,
           sortOrder: Number(formData.sortOrder) || 1,
+          isPrivate: formData.isPrivate,
         });
         showToast('分类修改成功', 'success');
       } else {
@@ -61,6 +65,7 @@ export const CategoryManager: React.FC = () => {
           name: formData.name.trim(),
           icon: formData.icon,
           sortOrder: Number(formData.sortOrder) || 1,
+          isPrivate: formData.isPrivate,
         });
         showToast('分类创建成功', 'success');
       }
@@ -237,9 +242,17 @@ export const CategoryManager: React.FC = () => {
                         {renderCategoryIcon(cat.icon, 'w-4 h-4')}
                       </div>
                       <div>
-                        <span className="font-semibold text-zinc-900 dark:text-white">
-                          {cat.name}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-zinc-900 dark:text-white">
+                            {cat.name}
+                          </span>
+                          {cat.isPrivate && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/60">
+                              <Lock className="w-2.5 h-2.5" />
+                              <span>私密</span>
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-zinc-400 font-mono">
                           图标: {cat.icon}
                         </p>
@@ -358,6 +371,21 @@ export const CategoryManager: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
                   className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
                 />
+              </div>
+
+              {/* Private Category Checkbox */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="catPrivateCheck"
+                  checked={formData.isPrivate}
+                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                />
+                <label htmlFor="catPrivateCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-amber-500" />
+                  <span>设为私密分类 (仅管理员登录可见，未登录访客将完全隐藏此分类及下属书签)</span>
+                </label>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">

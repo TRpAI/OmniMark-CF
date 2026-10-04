@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { User, Session, Category, Bookmark, SiteSettings } from '../../../packages/shared/types';
-import { INITIAL_CATEGORIES, INITIAL_BOOKMARKS, DEFAULT_SETTINGS } from '../../../packages/shared/constants';
+import { User, Session, Category, Bookmark, SiteSettings, CustomPage } from '../../../packages/shared/types';
+import { INITIAL_CATEGORIES, INITIAL_BOOKMARKS, DEFAULT_SETTINGS, INITIAL_PAGES } from '../../../packages/shared/constants';
 import { hashPassword } from '../security/password';
 
 export interface DatabaseSchema {
@@ -10,6 +10,7 @@ export interface DatabaseSchema {
   categories: Category[];
   bookmarks: Bookmark[];
   settings: SiteSettings;
+  customPages?: CustomPage[];
   backupMeta?: {
     lastBackupAt?: string;
     lastIncrementalSync?: string;
@@ -43,6 +44,7 @@ class JsonDatabase {
       categories: INITIAL_CATEGORIES,
       bookmarks: INITIAL_BOOKMARKS,
       settings: DEFAULT_SETTINGS,
+      customPages: INITIAL_PAGES,
       backupMeta: {
         lastBackupAt: new Date().toISOString(),
         version: 1,
@@ -97,6 +99,9 @@ class JsonDatabase {
       const parsed = JSON.parse(content) as DatabaseSchema;
       if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.bookmarks)) {
         throw new Error('Invalid database schema structure');
+      }
+      if (!Array.isArray(parsed.customPages)) {
+        parsed.customPages = [...INITIAL_PAGES];
       }
       this.cache = parsed;
       return this.cache;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authApi } from '../api/auth.api';
 import { apiClient } from '../api/client';
+import { useBookmarkStore } from './bookmark.store';
 
 interface UserInfo {
   id: string;
@@ -40,6 +41,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         isLoading: false,
         error: null,
       });
+      useBookmarkStore.getState().loadInitialData();
       return true;
     } catch (err: any) {
       set({
@@ -61,6 +63,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       error: null,
     });
+    useBookmarkStore.getState().loadInitialData();
   },
 
   checkAuth: async () => {
