@@ -3,6 +3,7 @@ import { SearchBar } from '../components/SearchBar';
 import { CategoryTabs } from '../features/categories/components/CategoryTabs';
 import { BookmarkGrid } from '../features/bookmarks/components/BookmarkGrid';
 import { CustomPageViewer } from '../features/pages/components/CustomPageViewer';
+import { BookmarkDetailModal } from '../features/bookmarks/components/BookmarkDetailModal';
 import { useBookmarkStore } from '../stores/bookmark.store';
 import { BrandLogo } from '../components/BrandLogo';
 import { Megaphone, Cloud, Zap, Database, ShieldCheck } from 'lucide-react';
@@ -49,6 +50,9 @@ export const HomePage: React.FC = () => {
         ) : (
           <BookmarkGrid />
         )}
+
+        {/* 站点详情弹窗 / 独立信息页面 (Bookmark Detail View) */}
+        <BookmarkDetailModal />
       </main>
 
       {/* 固定底部页脚 (Fixed Bottom Footer) */}

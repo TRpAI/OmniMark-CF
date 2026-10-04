@@ -16,6 +16,7 @@ interface BookmarkState {
   activePageId: string | null;
   searchQuery: string;
   selectedEngineId: string;
+  selectedBookmarkDetail: Bookmark | null;
   isLoading: boolean;
   error: string | null;
 
@@ -25,6 +26,8 @@ interface BookmarkState {
   setActivePage: (id: string | null) => void;
   setSearchQuery: (q: string) => void;
   setSelectedEngine: (id: string) => void;
+  openBookmarkDetail: (bookmark: Bookmark) => void;
+  closeBookmarkDetail: () => void;
   recordBookmarkClick: (id: string) => Promise<void>;
 
   // Bookmark actions
@@ -59,6 +62,7 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   activePageId: null,
   searchQuery: '',
   selectedEngineId: 'google',
+  selectedBookmarkDetail: null,
   isLoading: false,
   error: null,
 
@@ -90,6 +94,14 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   setActivePage: (id) => set({ activePageId: id, searchQuery: '' }),
   setSearchQuery: (q) => set({ searchQuery: q, activePageId: null }),
   setSelectedEngine: (id) => set({ selectedEngineId: id }),
+
+  openBookmarkDetail: (bookmark) => {
+    set({ selectedBookmarkDetail: bookmark });
+  },
+
+  closeBookmarkDetail: () => {
+    set({ selectedBookmarkDetail: null });
+  },
 
   recordBookmarkClick: async (id: string) => {
     // Optimistically update click count
