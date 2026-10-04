@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS categories (
   name TEXT NOT NULL,
   icon TEXT DEFAULT 'Folder',
   sortOrder INTEGER DEFAULT 0,
+  isPrivate INTEGER DEFAULT 0,
   createdAt TEXT NOT NULL
 );
 
@@ -45,6 +46,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   clickCount INTEGER DEFAULT 0,
   sortOrder INTEGER DEFAULT 0,
   isPinned INTEGER DEFAULT 0,
+  isPrivate INTEGER DEFAULT 0,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE
@@ -56,20 +58,38 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL
 );
 
+-- 6. Custom Pages Table
+CREATE TABLE IF NOT EXISTS custom_pages (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  icon TEXT DEFAULT 'FileText',
+  content TEXT NOT NULL,
+  isPrivate INTEGER DEFAULT 0,
+  sortOrder INTEGER DEFAULT 0,
+  createdAt TEXT NOT NULL,
+  updatedAt TEXT NOT NULL
+);
+
 -- Indexes for ultra-fast queries
 CREATE INDEX IF NOT EXISTS idx_bookmarks_category ON bookmarks(categoryId);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_pinned ON bookmarks(isPinned);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_sort ON bookmarks(sortOrder);
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(tokenHash);
+CREATE INDEX IF NOT EXISTS idx_pages_slug ON custom_pages(slug);
 
 -- Initial Categories
-INSERT OR IGNORE INTO categories (id, name, icon, sortOrder, createdAt) VALUES
-('cat-featured', '精选常用', 'Sparkles', 1, datetime('now')),
-('cat-dev', '开发编程', 'Code', 2, datetime('now')),
-('cat-ai', 'AI 人工智能', 'Cpu', 3, datetime('now')),
-('cat-design', '设计与素材', 'Palette', 4, datetime('now')),
-('cat-cloud', '云与基础设施', 'Cloud', 5, datetime('now')),
-('cat-tools', '效率工具', 'Wrench', 6, datetime('now'));
+INSERT OR IGNORE INTO categories (id, name, icon, sortOrder, isPrivate, createdAt) VALUES
+('cat-featured', '精选常用', 'Sparkles', 1, 0, datetime('now')),
+('cat-dev', '开发编程', 'Code', 2, 0, datetime('now')),
+('cat-ai', 'AI 人工智能', 'Cpu', 3, 0, datetime('now')),
+('cat-design', '设计与素材', 'Palette', 4, 0, datetime('now')),
+('cat-cloud', '云与基础设施', 'Cloud', 5, 0, datetime('now')),
+('cat-tools', '效率工具', 'Wrench', 6, 0, datetime('now'));
+
+-- Initial Custom Page
+INSERT OR IGNORE INTO custom_pages (id, title, slug, icon, content, isPrivate, sortOrder, createdAt, updatedAt) VALUES
+('page-about', '关于本站', 'about', 'Info', '# 关于 OmniMark 导航\n\n欢迎使用 OmniMark 现代化极简书签与网址导航中心。\n\n- **极致性能**：极简高响应架构\n- **安全隐私**：分类与书签支持公开/私密隔离\n- **多端同步**：支持 Microsoft OneDrive 云备份与 D1 边缘同步', 0, 1, datetime('now'), datetime('now'));
 
 -- Initial Default Admin (Passcode: admin123)
 INSERT OR IGNORE INTO users (id, username, passwordHash, createdAt) VALUES

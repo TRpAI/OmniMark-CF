@@ -50,19 +50,24 @@ app.get('/api/health', (req: Request, res: Response) => {
   });
 });
 
-// Self-healing / repair endpoint
-app.post('/api/health/repair', (req: Request, res: Response) => {
+// Self-healing / repair endpoint (supports both /api/health/repair and /health/repair)
+const handleRepair = (req: Request, res: Response) => {
   const result = jsonDb.repairDatabase();
   const storageCheck = jsonDb.verifyStorageHealth();
 
   res.json({
     success: result.repaired,
+    repaired: result.repaired,
+    message: result.repaired ? '存储自愈与结构校验成功' : '存储无需修复，状态健康',
     data: {
       ...result,
       storage: storageCheck,
     },
   });
-});
+};
+
+app.post('/api/health/repair', handleRepair);
+app.post('/health/repair', handleRepair);
 
 // API Routes
 app.use('/api/auth', authRoutes);

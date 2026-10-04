@@ -39,6 +39,14 @@
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
       "expiresAt": "2026-11-03T04:29:13.950Z",
       "createdAt": "2026-10-04T04:29:13.951Z"
+    },
+    {
+      "id": "sess-e1be7a17-6c70-402a-a384-4c4d396b368b",
+      "userId": "usr-admin-1",
+      "tokenHash": "212cb95d74fcaa947c26e8e6ecf9ff79e6c00e66c9dfcaf6b98c5ca7153e8813",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "expiresAt": "2026-11-03T04:44:36.748Z",
+      "createdAt": "2026-10-04T04:44:36.749Z"
     }
   ],
   "categories": [
@@ -284,21 +292,6 @@
       "isPinned": true,
       "createdAt": "2025-01-01T00:00:00.000Z",
       "updatedAt": "2025-01-01T00:00:00.000Z"
-    },
-    {
-      "id": "bm-628b7732-e6ce-4953-9bf4-da6aecdd93d8",
-      "categoryId": "cat-featured",
-      "title": "Secret Admin Portal",
-      "url": "https://internal.company.com",
-      "description": "",
-      "favicon": "https://www.google.com/s2/favicons?domain=internal.company.com&sz=128",
-      "tags": [],
-      "clickCount": 0,
-      "sortOrder": 4,
-      "isPinned": false,
-      "isPrivate": true,
-      "createdAt": "2026-10-04T04:29:13.959Z",
-      "updatedAt": "2026-10-04T04:29:13.959Z"
     }
   ],
   "settings": {
