@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
 import { AdminPage } from './pages/AdminPage';
 import { LoginModal } from './features/auth/components/LoginModal';
+import { PWAInstallBottomBanner } from './components/PWAInstallBanner';
 import { useAuthStore } from './stores/auth.store';
 import { useBookmarkStore } from './stores/bookmark.store';
 import { useUiStore } from './stores/ui.store';
@@ -28,6 +29,9 @@ export default function App() {
 
       {/* Admin Login Modal */}
       <LoginModal />
+
+      {/* PWA Install Bottom Floating Banner & Modal */}
+      <PWAInstallBottomBanner />
 
       {/* Toast Notifications */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">

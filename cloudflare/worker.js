@@ -125,6 +125,11 @@ async function sha256(text) {
   return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// 辅助函数：D1 数据库参数安全转换器（彻底杜绝 D1_TYPE_ERROR: Type 'undefined' not supported for value 'undefined'）
+function sStr(v, def = '') { return (v === undefined || v === null) ? def : String(v); }
+function sNum(v, def = 0) { const n = Number(v); return isNaN(n) ? def : n; }
+function sBool(v, def = 0) { if (v === undefined || v === null) return def; return v ? 1 : 0; }
+
 // 内存级 IP 频率限制器（防暴力破解）
 const ipRateLimitMap = new Map();
 function checkRateLimit(ip, maxRequests = 5, windowMs = 60000) {
@@ -686,25 +691,25 @@ export default {
         const id = generateId('bm');
         const now = new Date().toISOString();
         const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
-        const isPrivate = data.isPrivate ? 1 : 0;
-        const inFeed = data.inFeed ? 1 : 0;
-        const feedHighlight = data.feedHighlight ? 1 : 0;
-        const feedCustomNote = data.feedCustomNote || '';
+        const isPrivate = sBool(data.isPrivate);
+        const inFeed = sBool(data.inFeed);
+        const feedHighlight = sBool(data.feedHighlight);
+        const feedCustomNote = sStr(data.feedCustomNote);
 
         try {
           await env.DB.prepare(
             'INSERT INTO bookmarks (id, categoryId, title, url, description, favicon, tags, clickCount, sortOrder, isPinned, isPrivate, inFeed, feedCustomNote, feedHighlight, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)'
           )
             .bind(
-              id,
-              data.categoryId,
-              data.title,
-              data.url,
-              data.description || '',
-              data.favicon || '',
-              tags,
-              data.sortOrder || 0,
-              data.isPinned ? 1 : 0,
+              sStr(id),
+              sStr(data.categoryId),
+              sStr(data.title),
+              sStr(data.url),
+              sStr(data.description),
+              sStr(data.favicon),
+              sStr(tags),
+              sNum(data.sortOrder),
+              sBool(data.isPinned),
               isPrivate,
               inFeed,
               feedCustomNote,
@@ -719,15 +724,15 @@ export default {
             'INSERT INTO bookmarks (id, categoryId, title, url, description, favicon, tags, clickCount, sortOrder, isPinned, isPrivate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)'
           )
             .bind(
-              id,
-              data.categoryId,
-              data.title,
-              data.url,
-              data.description || '',
-              data.favicon || '',
-              tags,
-              data.sortOrder || 0,
-              data.isPinned ? 1 : 0,
+              sStr(id),
+              sStr(data.categoryId),
+              sStr(data.title),
+              sStr(data.url),
+              sStr(data.description),
+              sStr(data.favicon),
+              sStr(tags),
+              sNum(data.sortOrder),
+              sBool(data.isPinned),
               isPrivate,
               now,
               now
@@ -757,7 +762,7 @@ export default {
         if (Array.isArray(items)) {
           for (const it of items) {
             if (it.id) {
-              await env.DB.prepare('UPDATE bookmarks SET sortOrder = ? WHERE id = ?').bind(it.sortOrder || 0, it.id).run();
+              await env.DB.prepare('UPDATE bookmarks SET sortOrder = ? WHERE id = ?').bind(sNum(it.sortOrder), sStr(it.id)).run();
             }
           }
         }
@@ -769,7 +774,7 @@ export default {
       const clickMatch = path.match(/^\/bookmarks\/([^/]+)\/click$/);
       if (clickMatch && method === 'POST') {
         const id = clickMatch[1];
-        await env.DB.prepare('UPDATE bookmarks SET clickCount = clickCount + 1 WHERE id = ?').bind(id).run();
+        await env.DB.prepare('UPDATE bookmarks SET clickCount = clickCount + 1 WHERE id = ?').bind(sStr(id)).run();
         invalidateCache();
         return success({ clickCount: 1 });
       }
@@ -784,22 +789,21 @@ export default {
         const data = await request.json().catch(() => ({}));
         
         // 查询现有书签记录
-        const existing = await env.DB.prepare('SELECT * FROM bookmarks WHERE id = ?').bind(id).first();
-        if (!existing) return error('书签不存在', 404);
+        const existing = (await env.DB.prepare('SELECT * FROM bookmarks WHERE id = ?').bind(sStr(id)).first()) || {};
 
         const now = new Date().toISOString();
-        const categoryId = data.categoryId !== undefined ? data.categoryId : existing.categoryId;
-        const title = data.title !== undefined ? data.title : existing.title;
-        const bUrl = data.url !== undefined ? data.url : existing.url;
-        const description = data.description !== undefined ? (data.description || '') : (existing.description || '');
-        const favicon = data.favicon !== undefined ? (data.favicon || '') : (existing.favicon || '');
-        const tags = data.tags !== undefined ? (Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]') : (existing.tags || '[]');
-        const isPinned = data.isPinned !== undefined ? (data.isPinned ? 1 : 0) : (existing.isPinned ? 1 : 0);
-        const isPrivate = data.isPrivate !== undefined ? (data.isPrivate ? 1 : 0) : (existing.isPrivate ? 1 : 0);
-        const inFeed = data.inFeed !== undefined ? (data.inFeed ? 1 : 0) : (existing.inFeed ? 1 : 0);
-        const feedCustomNote = data.feedCustomNote !== undefined ? (data.feedCustomNote || '') : (existing.feedCustomNote || '');
-        const feedHighlight = data.feedHighlight !== undefined ? (data.feedHighlight ? 1 : 0) : (existing.feedHighlight ? 1 : 0);
-        const sortOrder = data.sortOrder !== undefined ? (Number(data.sortOrder) || 0) : (Number(existing.sortOrder) || 0);
+        const categoryId = sStr(data.categoryId !== undefined ? data.categoryId : existing.categoryId);
+        const title = sStr(data.title !== undefined ? data.title : existing.title);
+        const bUrl = sStr(data.url !== undefined ? data.url : existing.url);
+        const description = sStr(data.description !== undefined ? data.description : existing.description);
+        const favicon = sStr(data.favicon !== undefined ? data.favicon : existing.favicon);
+        const tags = sStr(data.tags !== undefined ? (Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]') : (existing.tags || '[]'));
+        const isPinned = sBool(data.isPinned !== undefined ? data.isPinned : existing.isPinned);
+        const isPrivate = sBool(data.isPrivate !== undefined ? data.isPrivate : existing.isPrivate);
+        const inFeed = sBool(data.inFeed !== undefined ? data.inFeed : existing.inFeed);
+        const feedCustomNote = sStr(data.feedCustomNote !== undefined ? data.feedCustomNote : existing.feedCustomNote);
+        const feedHighlight = sBool(data.feedHighlight !== undefined ? data.feedHighlight : existing.feedHighlight);
+        const sortOrder = sNum(data.sortOrder !== undefined ? data.sortOrder : existing.sortOrder);
 
         try {
           await env.DB.prepare(
@@ -819,7 +823,7 @@ export default {
               feedHighlight,
               sortOrder,
               now,
-              id
+              sStr(id)
             )
             .run();
         } catch {
@@ -838,7 +842,7 @@ export default {
               isPrivate,
               sortOrder,
               now,
-              id
+              sStr(id)
             )
             .run();
         }

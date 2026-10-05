@@ -29,6 +29,10 @@ export interface Env {
   JWT_SECRET?: string;
 }
 
+function sStr(v: any, def = ''): string { return (v === undefined || v === null) ? def : String(v); }
+function sNum(v: any, def = 0): number { const n = Number(v); return isNaN(n) ? def : n; }
+function sBool(v: any, def = 0): number { if (v === undefined || v === null) return def; return v ? 1 : 0; }
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -80,17 +84,20 @@ export default {
 
         if (categoryId && categoryId !== 'all') {
           query += ' WHERE categoryId = ?';
-          params.push(categoryId);
+          params.push(sStr(categoryId));
         }
 
         query += ' ORDER BY isPinned DESC, sortOrder ASC';
         const stmt = env.DB.prepare(query);
         const { results } = await stmt.bind(...params).all();
 
-        const formatted = results.map((r: any) => ({
+        const formatted = (results || []).map((r: any) => ({
           ...r,
           tags: r.tags ? JSON.parse(r.tags) : [],
           isPinned: Boolean(r.isPinned),
+          isPrivate: Boolean(r.isPrivate),
+          inFeed: Boolean(r.inFeed),
+          feedHighlight: Boolean(r.feedHighlight),
         }));
 
         const responsePayload = JSON.stringify({ success: true, data: formatted });
@@ -126,7 +133,7 @@ export default {
       const clickMatch = path.match(/^\/api\/bookmarks\/([^/]+)\/click$/);
       if (clickMatch && request.method === 'POST') {
         const id = clickMatch[1];
-        await env.DB.prepare('UPDATE bookmarks SET clickCount = clickCount + 1 WHERE id = ?').bind(id).run();
+        await env.DB.prepare('UPDATE bookmarks SET clickCount = clickCount + 1 WHERE id = ?').bind(sStr(id)).run();
         // Invalidate cache
         if (env.CACHE_KV) {
           ctx.waitUntil(env.CACHE_KV.delete('cache:bookmarks:all:'));

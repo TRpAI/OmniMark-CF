@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth.store';
 import { useUiStore } from '../stores/ui.store';
 import { useBookmarkStore } from '../stores/bookmark.store';
 import { BrandLogo } from './BrandLogo';
+import { PWAInstallNavbarButton } from './PWAInstallBanner';
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, logout } = useAuthStore();
@@ -45,9 +46,12 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: Unified Single Management Access */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Single Unified Admin/Home Toggle Button (Icon only on mobile, text on desktop) */}
+        {/* Right: PWA Install + Management Access */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* PWA Install Button */}
+          <PWAInstallNavbarButton />
+
+          {/* Single Unified Admin/Home Toggle Button */}
           <button
             onClick={handleAdminAction}
             title={currentView === 'admin' ? '返回前台导航' : isAuthenticated ? '管理后台' : '管理员登录'}
@@ -75,7 +79,7 @@ export const Navbar: React.FC = () => {
             )}
           </button>
 
-          {/* Quick Logout button when authenticated (Icon on mobile, subtle on desktop) */}
+          {/* Quick Logout button when authenticated */}
           {isAuthenticated && (
             <button
               onClick={() => logout()}
