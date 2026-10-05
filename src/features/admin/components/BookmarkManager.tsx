@@ -154,7 +154,7 @@ export const BookmarkManager: React.FC = () => {
     e.stopPropagation();
     try {
       const nextVal = !bm.inFeed;
-      await updateBookmark(bm.id, { inFeed: nextVal });
+      await updateBookmark(bm.id, { ...bm, inFeed: nextVal });
       showToast(nextVal ? `已将「${bm.title}」收录进快讯` : `已将「${bm.title}」移出快讯`, 'info');
     } catch (err: any) {
       showToast(err.message || '更新失败', 'error');
@@ -174,7 +174,7 @@ export const BookmarkManager: React.FC = () => {
 
   const handleTogglePin = async (bm: Bookmark) => {
     try {
-      await updateBookmark(bm.id, { isPinned: !bm.isPinned });
+      await updateBookmark(bm.id, { ...bm, isPinned: !bm.isPinned });
       showToast(bm.isPinned ? '已取消置顶' : '已设为置顶', 'success');
     } catch (err: any) {
       showToast(err.message || '操作失败', 'error');

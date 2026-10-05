@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   sortOrder INTEGER DEFAULT 0,
   isPinned INTEGER DEFAULT 0,
   isPrivate INTEGER DEFAULT 0,
+  inFeed INTEGER DEFAULT 0,
+  feedCustomNote TEXT,
+  feedHighlight INTEGER DEFAULT 0,
   createdAt TEXT NOT NULL,
   updatedAt TEXT NOT NULL,
   FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE CASCADE

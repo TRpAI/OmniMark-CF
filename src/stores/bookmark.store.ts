@@ -125,9 +125,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   updateBookmark: async (id, data) => {
-    const updated = await bookmarkApi.update(id, data);
+    const existing = get().bookmarks.find((b) => b.id === id);
+    const fullData = existing ? { ...existing, ...data } : data;
+    const updated = await bookmarkApi.update(id, fullData);
     set((state) => ({
-      bookmarks: state.bookmarks.map((b) => (b.id === id ? updated : b)),
+      bookmarks: state.bookmarks.map((b) => (b.id === id ? { ...b, ...updated } : b)),
     }));
     return updated;
   },

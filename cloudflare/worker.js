@@ -660,6 +660,9 @@ export default {
           tags: r.tags ? (typeof r.tags === 'string' ? safeParseJson(r.tags, []) : r.tags) : [],
           isPinned: Boolean(r.isPinned),
           isPrivate: Boolean(r.isPrivate),
+          inFeed: Boolean(r.inFeed),
+          feedHighlight: Boolean(r.feedHighlight),
+          feedCustomNote: r.feedCustomNote || '',
         }));
 
         const payload = JSON.stringify({ success: true, data: formatted });
@@ -684,28 +687,65 @@ export default {
         const now = new Date().toISOString();
         const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]';
         const isPrivate = data.isPrivate ? 1 : 0;
+        const inFeed = data.inFeed ? 1 : 0;
+        const feedHighlight = data.feedHighlight ? 1 : 0;
+        const feedCustomNote = data.feedCustomNote || '';
 
-        await env.DB.prepare(
-          'INSERT INTO bookmarks (id, categoryId, title, url, description, favicon, tags, clickCount, sortOrder, isPinned, isPrivate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)'
-        )
-          .bind(
-            id,
-            data.categoryId,
-            data.title,
-            data.url,
-            data.description || '',
-            data.favicon || '',
-            tags,
-            data.sortOrder || 0,
-            data.isPinned ? 1 : 0,
-            isPrivate,
-            now,
-            now
+        try {
+          await env.DB.prepare(
+            'INSERT INTO bookmarks (id, categoryId, title, url, description, favicon, tags, clickCount, sortOrder, isPinned, isPrivate, inFeed, feedCustomNote, feedHighlight, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?)'
           )
-          .run();
+            .bind(
+              id,
+              data.categoryId,
+              data.title,
+              data.url,
+              data.description || '',
+              data.favicon || '',
+              tags,
+              data.sortOrder || 0,
+              data.isPinned ? 1 : 0,
+              isPrivate,
+              inFeed,
+              feedCustomNote,
+              feedHighlight,
+              now,
+              now
+            )
+            .run();
+        } catch {
+          // 降级为旧表结构插入
+          await env.DB.prepare(
+            'INSERT INTO bookmarks (id, categoryId, title, url, description, favicon, tags, clickCount, sortOrder, isPinned, isPrivate, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)'
+          )
+            .bind(
+              id,
+              data.categoryId,
+              data.title,
+              data.url,
+              data.description || '',
+              data.favicon || '',
+              tags,
+              data.sortOrder || 0,
+              data.isPinned ? 1 : 0,
+              isPrivate,
+              now,
+              now
+            )
+            .run();
+        }
 
         invalidateCache();
-        return success({ id, ...data, tags: JSON.parse(tags), isPinned: Boolean(data.isPinned), isPrivate: Boolean(isPrivate) });
+        return success({
+          id,
+          ...data,
+          tags: JSON.parse(tags),
+          isPinned: Boolean(data.isPinned),
+          isPrivate: Boolean(isPrivate),
+          inFeed: Boolean(inFeed),
+          feedCustomNote,
+          feedHighlight: Boolean(feedHighlight),
+        });
       }
 
       // 批量排序书签
@@ -734,7 +774,7 @@ export default {
         return success({ clickCount: 1 });
       }
 
-      // 更新单个书签
+      // 更新单个书签 (支持部分字段更新与安全合并，彻底防止 D1 bind undefined 错误)
       const bookmarkItemMatch = path.match(/^\/bookmarks\/([^/]+)$/);
       if (bookmarkItemMatch && method === 'PUT') {
         const session = await authenticate();
@@ -742,30 +782,86 @@ export default {
 
         const id = bookmarkItemMatch[1];
         const data = await request.json().catch(() => ({}));
-        const now = new Date().toISOString();
-        const tags = Array.isArray(data.tags) ? JSON.stringify(data.tags) : JSON.stringify([]);
-        const isPrivate = data.isPrivate !== undefined ? (data.isPrivate ? 1 : 0) : 0;
+        
+        // 查询现有书签记录
+        const existing = await env.DB.prepare('SELECT * FROM bookmarks WHERE id = ?').bind(id).first();
+        if (!existing) return error('书签不存在', 404);
 
-        await env.DB.prepare(
-          'UPDATE bookmarks SET categoryId = ?, title = ?, url = ?, description = ?, favicon = ?, tags = ?, isPinned = ?, isPrivate = ?, sortOrder = ?, updatedAt = ? WHERE id = ?'
-        )
-          .bind(
-            data.categoryId,
-            data.title,
-            data.url,
-            data.description || '',
-            data.favicon || '',
-            tags,
-            data.isPinned ? 1 : 0,
-            isPrivate,
-            data.sortOrder || 0,
-            now,
-            id
+        const now = new Date().toISOString();
+        const categoryId = data.categoryId !== undefined ? data.categoryId : existing.categoryId;
+        const title = data.title !== undefined ? data.title : existing.title;
+        const bUrl = data.url !== undefined ? data.url : existing.url;
+        const description = data.description !== undefined ? (data.description || '') : (existing.description || '');
+        const favicon = data.favicon !== undefined ? (data.favicon || '') : (existing.favicon || '');
+        const tags = data.tags !== undefined ? (Array.isArray(data.tags) ? JSON.stringify(data.tags) : '[]') : (existing.tags || '[]');
+        const isPinned = data.isPinned !== undefined ? (data.isPinned ? 1 : 0) : (existing.isPinned ? 1 : 0);
+        const isPrivate = data.isPrivate !== undefined ? (data.isPrivate ? 1 : 0) : (existing.isPrivate ? 1 : 0);
+        const inFeed = data.inFeed !== undefined ? (data.inFeed ? 1 : 0) : (existing.inFeed ? 1 : 0);
+        const feedCustomNote = data.feedCustomNote !== undefined ? (data.feedCustomNote || '') : (existing.feedCustomNote || '');
+        const feedHighlight = data.feedHighlight !== undefined ? (data.feedHighlight ? 1 : 0) : (existing.feedHighlight ? 1 : 0);
+        const sortOrder = data.sortOrder !== undefined ? (Number(data.sortOrder) || 0) : (Number(existing.sortOrder) || 0);
+
+        try {
+          await env.DB.prepare(
+            'UPDATE bookmarks SET categoryId = ?, title = ?, url = ?, description = ?, favicon = ?, tags = ?, isPinned = ?, isPrivate = ?, inFeed = ?, feedCustomNote = ?, feedHighlight = ?, sortOrder = ?, updatedAt = ? WHERE id = ?'
           )
-          .run();
+            .bind(
+              categoryId,
+              title,
+              bUrl,
+              description,
+              favicon,
+              tags,
+              isPinned,
+              isPrivate,
+              inFeed,
+              feedCustomNote,
+              feedHighlight,
+              sortOrder,
+              now,
+              id
+            )
+            .run();
+        } catch {
+          // 降级为旧表结构更新
+          await env.DB.prepare(
+            'UPDATE bookmarks SET categoryId = ?, title = ?, url = ?, description = ?, favicon = ?, tags = ?, isPinned = ?, isPrivate = ?, sortOrder = ?, updatedAt = ? WHERE id = ?'
+          )
+            .bind(
+              categoryId,
+              title,
+              bUrl,
+              description,
+              favicon,
+              tags,
+              isPinned,
+              isPrivate,
+              sortOrder,
+              now,
+              id
+            )
+            .run();
+        }
 
         invalidateCache();
-        return success({ id, ...data, isPrivate: Boolean(isPrivate) });
+        return success({
+          id,
+          ...existing,
+          ...data,
+          categoryId,
+          title,
+          url: bUrl,
+          description,
+          favicon,
+          tags: safeParseJson(tags, []),
+          isPinned: Boolean(isPinned),
+          isPrivate: Boolean(isPrivate),
+          inFeed: Boolean(inFeed),
+          feedCustomNote,
+          feedHighlight: Boolean(feedHighlight),
+          sortOrder,
+          updatedAt: now,
+        });
       }
 
       // 删除单个书签

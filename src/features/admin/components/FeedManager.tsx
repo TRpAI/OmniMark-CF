@@ -93,6 +93,7 @@ export const FeedManager: React.FC = () => {
     // Update bookmark inFeed property
     try {
       await updateBookmark(bm.id, {
+        ...bm,
         inFeed: newInFeed,
       });
 
@@ -125,7 +126,7 @@ export const FeedManager: React.FC = () => {
 
       for (const bm of pinned) {
         if (!bm.inFeed) {
-          await updateBookmark(bm.id, { inFeed: true });
+          await updateBookmark(bm.id, { ...bm, inFeed: true });
         }
       }
 
@@ -148,7 +149,7 @@ export const FeedManager: React.FC = () => {
 
       for (const bm of filteredBookmarks) {
         if (!bm.inFeed) {
-          await updateBookmark(bm.id, { inFeed: true });
+          await updateBookmark(bm.id, { ...bm, inFeed: true });
         }
       }
 
@@ -168,7 +169,7 @@ export const FeedManager: React.FC = () => {
     try {
       for (const bm of bookmarks) {
         if (bm.inFeed) {
-          await updateBookmark(bm.id, { inFeed: false });
+          await updateBookmark(bm.id, { ...bm, inFeed: false });
         }
       }
       await updateSettings({
@@ -193,6 +194,7 @@ export const FeedManager: React.FC = () => {
     if (!editingNoteBm) return;
     try {
       await updateBookmark(editingNoteBm.id, {
+        ...editingNoteBm,
         feedCustomNote: customNoteText.trim(),
         feedHighlight: customHighlight,
         inFeed: true, // Automatically enable if customized
