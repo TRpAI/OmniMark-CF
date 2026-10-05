@@ -10,11 +10,11 @@ interface UiState {
   currentView: 'home' | 'admin';
   isLoginModalOpen: boolean;
   toasts: ToastMessage[];
-  adminTab: 'dashboard' | 'bookmarks' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings';
+  adminTab: 'dashboard' | 'bookmarks' | 'feed' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings';
 
   setCurrentView: (view: 'home' | 'admin') => void;
   setLoginModalOpen: (open: boolean) => void;
-  setAdminTab: (tab: 'dashboard' | 'bookmarks' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings') => void;
+  setAdminTab: (tab: 'dashboard' | 'bookmarks' | 'feed' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings') => void;
   showToast: (message: string, type?: 'success' | 'error' | 'info') => void;
   removeToast: (id: string) => void;
 }

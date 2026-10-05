@@ -36,6 +36,9 @@ export interface Bookmark {
   sortOrder: number;
   isPinned: boolean;
   isPrivate?: boolean;
+  inFeed?: boolean; // 是否加入站点快讯 (精选/动态展示)
+  feedCustomNote?: string; // 自定义快讯动态解读/最新简报
+  feedHighlight?: boolean; // 是否在快讯中标记为精选/头条
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +73,10 @@ export interface SiteSettings {
   announcement?: string;
   enableClickCounter: boolean;
   enablePinnedSection: boolean;
+  enableSiteFeed?: boolean;        // 是否在导航栏启用站点快讯
+  siteFeedTitle?: string;          // 站点快讯页面主标题
+  siteFeedSubtitle?: string;       // 站点快讯页面副标题
+  feedBookmarkIds?: string[];      // 明确选定加入快讯的书签ID列表
   maxBookmarksPerCategory?: number; // 首页每个分类默认最多展示书签数，0 为不限制
   maxTotalBookmarks?: number;       // 首页单分类/总列表默认最多展示书签数，0 为不限制
   searchEngines: SearchEngine[];

@@ -15,6 +15,8 @@ import {
   Tag,
   AlertTriangle,
   Lock,
+  Rss,
+  Flame,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -27,7 +29,7 @@ export const BookmarkManager: React.FC = () => {
 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [privacyFilter, setPrivacyFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [privacyFilter, setPrivacyFilter] = useState<'all' | 'public' | 'private' | 'pinned' | 'feed'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isFetchingFavicon, setIsFetchingFavicon] = useState(false);
@@ -45,6 +47,9 @@ export const BookmarkManager: React.FC = () => {
     sortOrder: 1,
     isPinned: false,
     isPrivate: false,
+    inFeed: false,
+    feedCustomNote: '',
+    feedHighlight: false,
   });
 
   const openAddModal = () => {
@@ -59,6 +64,9 @@ export const BookmarkManager: React.FC = () => {
       sortOrder: bookmarks.length + 1,
       isPinned: false,
       isPrivate: false,
+      inFeed: false,
+      feedCustomNote: '',
+      feedHighlight: false,
     });
     setIsModalOpen(true);
   };
@@ -75,6 +83,9 @@ export const BookmarkManager: React.FC = () => {
       sortOrder: bm.sortOrder,
       isPinned: Boolean(bm.isPinned),
       isPrivate: Boolean(bm.isPrivate),
+      inFeed: Boolean(bm.inFeed),
+      feedCustomNote: bm.feedCustomNote || '',
+      feedHighlight: Boolean(bm.feedHighlight),
     });
     setIsModalOpen(true);
   };
@@ -120,6 +131,9 @@ export const BookmarkManager: React.FC = () => {
       sortOrder: Number(formData.sortOrder) || 1,
       isPinned: formData.isPinned,
       isPrivate: formData.isPrivate,
+      inFeed: formData.inFeed,
+      feedCustomNote: formData.feedCustomNote.trim(),
+      feedHighlight: formData.feedHighlight,
     };
 
     try {
@@ -133,6 +147,17 @@ export const BookmarkManager: React.FC = () => {
       setIsModalOpen(false);
     } catch (err: any) {
       showToast(err.message || '操作失败', 'error');
+    }
+  };
+
+  const handleToggleFeedQuick = async (bm: Bookmark, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const nextVal = !bm.inFeed;
+      await updateBookmark(bm.id, { inFeed: nextVal });
+      showToast(nextVal ? `已将「${bm.title}」收录进快讯` : `已将「${bm.title}」移出快讯`, 'info');
+    } catch (err: any) {
+      showToast(err.message || '更新失败', 'error');
     }
   };
 
@@ -167,7 +192,9 @@ export const BookmarkManager: React.FC = () => {
     const matchesPrivacy =
       privacyFilter === 'all' ||
       (privacyFilter === 'public' && !b.isPrivate) ||
-      (privacyFilter === 'private' && b.isPrivate);
+      (privacyFilter === 'private' && b.isPrivate) ||
+      (privacyFilter === 'pinned' && b.isPinned) ||
+      (privacyFilter === 'feed' && b.inFeed);
     return matchesSearch && matchesCat && matchesPrivacy;
   });
 
@@ -202,13 +229,15 @@ export const BookmarkManager: React.FC = () => {
             ))}
           </select>
 
-          {/* Privacy Filter */}
+          {/* Privacy & Feature Filter */}
           <select
             value={privacyFilter}
             onChange={(e) => setPrivacyFilter(e.target.value as any)}
             className="px-3 py-2 text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none"
           >
-            <option value="all">全部可见性</option>
+            <option value="all">全部书签 ({bookmarks.length})</option>
+            <option value="pinned">仅常用置顶 ({bookmarks.filter((b) => b.isPinned).length})</option>
+            <option value="feed">仅快讯精选 ({bookmarks.filter((b) => b.inFeed).length})</option>
             <option value="public">仅公开书签</option>
             <option value="private">仅私密书签 (🔒)</option>
           </select>
@@ -248,13 +277,18 @@ export const BookmarkManager: React.FC = () => {
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <h4 className="text-xs font-semibold text-zinc-900 dark:text-white truncate">
                         {bm.title}
                       </h4>
                       {bm.isPinned && (
-                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500">
+                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="常用置顶">
                           <Pin className="w-3 h-3 fill-amber-500/20" />
+                        </span>
+                      )}
+                      {bm.inFeed && (
+                        <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60" title="已加入站点快讯">
+                          快讯
                         </span>
                       )}
                       {bm.isPrivate && (
@@ -273,6 +307,17 @@ export const BookmarkManager: React.FC = () => {
 
                 {/* Right: Icon Buttons */}
                 <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={(e) => handleToggleFeedQuick(bm, e)}
+                    title={bm.inFeed ? '移出快讯' : '收录进快讯'}
+                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      bm.inFeed
+                        ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                        : 'text-zinc-300 dark:text-zinc-600 hover:text-zinc-500'
+                    }`}
+                  >
+                    <Rss className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     onClick={() => handleTogglePin(bm)}
                     title={bm.isPinned ? '取消置顶' : '置顶'}
@@ -311,10 +356,11 @@ export const BookmarkManager: React.FC = () => {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">
-                <th className="py-3 px-4 w-12">置顶</th>
+                <th className="py-3 px-3 w-10 text-center">置顶</th>
+                <th className="py-3 px-3 w-12 text-center">快讯</th>
                 <th className="py-3 px-4">书签信息</th>
                 <th className="py-3 px-4">所属分类</th>
-                <th className="py-3 px-4">标签</th>
+                <th className="py-3 px-4">标签与速报</th>
                 <th className="py-3 px-4 text-center">点击量</th>
                 <th className="py-3 px-4 text-right">操作</th>
               </tr>
@@ -322,7 +368,7 @@ export const BookmarkManager: React.FC = () => {
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-zinc-400 text-sm">
+                  <td colSpan={7} className="py-12 text-center text-zinc-400 text-sm">
                     未找到相关书签
                   </td>
                 </tr>
@@ -335,7 +381,7 @@ export const BookmarkManager: React.FC = () => {
                       className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group"
                     >
                       {/* Pin Toggle */}
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-3 text-center">
                         <button
                           onClick={() => handleTogglePin(bm)}
                           title={bm.isPinned ? '点击取消置顶' : '点击置顶'}
@@ -346,6 +392,21 @@ export const BookmarkManager: React.FC = () => {
                           }`}
                         >
                           <Pin className="w-4 h-4" />
+                        </button>
+                      </td>
+
+                      {/* InFeed Toggle */}
+                      <td className="py-3.5 px-3 text-center">
+                        <button
+                          onClick={(e) => handleToggleFeedQuick(bm, e)}
+                          title={bm.inFeed ? '已加入快讯 (点击移出)' : '点击收录进快讯'}
+                          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                            bm.inFeed
+                              ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                              : 'text-zinc-300 dark:text-zinc-600 hover:text-zinc-500'
+                          }`}
+                        >
+                          <Rss className="w-4 h-4" />
                         </button>
                       </td>
 
@@ -362,6 +423,11 @@ export const BookmarkManager: React.FC = () => {
                           <div className="min-w-0 max-w-xs sm:max-w-md">
                             <div className="font-semibold text-zinc-900 dark:text-white flex items-center gap-1.5 truncate">
                               <span>{bm.title}</span>
+                              {bm.inFeed && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/60 shrink-0">
+                                  <span>快讯精选</span>
+                                </span>
+                              )}
                               {bm.isPrivate && (
                                 <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-medium bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400 border border-amber-200/60 shrink-0">
                                   <Lock className="w-2.5 h-2.5" />
@@ -589,31 +655,82 @@ export const BookmarkManager: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="isPinnedCheck"
-                  checked={formData.isPinned}
-                  onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
-                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="isPinnedCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer">
-                  设为首页置顶书签 (将在顶部常用区展示)
-                </label>
-              </div>
+              <div className="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  展示策略与快讯配置
+                </div>
 
-              <div className="flex items-center gap-2 pt-1">
-                <input
-                  type="checkbox"
-                  id="isPrivateCheck"
-                  checked={formData.isPrivate}
-                  onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
-                  className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
-                />
-                <label htmlFor="isPrivateCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-amber-500" />
-                  <span>设为私密书签 (仅管理员登录后可见，未登录访客隐藏)</span>
-                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPinnedCheck"
+                    checked={formData.isPinned}
+                    onChange={(e) => setFormData({ ...formData, isPinned: e.target.checked })}
+                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="isPinnedCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer">
+                    设为首页置顶书签 (将在顶部常用区展示)
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="inFeedCheck"
+                    checked={formData.inFeed}
+                    onChange={(e) => setFormData({ ...formData, inFeed: e.target.checked })}
+                    className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="inFeedCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer flex items-center gap-1.5">
+                    <Rss className="w-3.5 h-3.5 text-amber-500" />
+                    <span>加入「站点快讯」展示 (在前台快讯 Feed 流中呈现精美动态)</span>
+                  </label>
+                </div>
+
+                {formData.inFeed && (
+                  <div className="pl-6 space-y-3 pt-1 border-l-2 border-amber-200 dark:border-amber-900/60 ml-1.5">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="feedHighlightCheck"
+                        checked={formData.feedHighlight}
+                        onChange={(e) => setFormData({ ...formData, feedHighlight: e.target.checked })}
+                        className="rounded border-amber-300 text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                      />
+                      <label htmlFor="feedHighlightCheck" className="text-xs text-amber-900 dark:text-amber-300 cursor-pointer flex items-center gap-1">
+                        <Flame className="w-3.5 h-3.5 text-amber-500" />
+                        <span>标记为快讯头条 / 精选推荐</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                        自定义快讯速报 / 解读 (可选)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={formData.feedCustomNote}
+                        onChange={(e) => setFormData({ ...formData, feedCustomNote: e.target.value })}
+                        placeholder="例如：发布全新重大版本更新，重点优化了开发体验与构建性能..."
+                        className="w-full px-3 py-1.5 text-xs rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="isPrivateCheck"
+                    checked={formData.isPrivate}
+                    onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="isPrivateCheck" className="text-sm text-zinc-800 dark:text-zinc-200 cursor-pointer flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5 text-amber-500" />
+                    <span>设为私密书签 (仅管理员登录后可见，未登录访客隐藏)</span>
+                  </label>
+                </div>
               </div>
 
               {/* Buttons */}

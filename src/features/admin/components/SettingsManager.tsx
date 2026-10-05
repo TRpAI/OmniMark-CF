@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server, LayoutGrid } from 'lucide-react';
+import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server, LayoutGrid, Rss, Sparkles, Sliders } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { SearchEngine } from '../../../../packages/shared/types';
 import { apiClient } from '../../../api/client';
 
 export const SettingsManager: React.FC = () => {
-  const { settings, updateSettings, loadInitialData } = useBookmarkStore();
-  const { showToast } = useUiStore();
+  const { settings, updateSettings, loadInitialData, bookmarks } = useBookmarkStore();
+  const { showToast, setAdminTab } = useUiStore();
 
   const [apiUrl, setApiUrl] = useState(apiClient.getBaseUrl());
   const [formData, setFormData] = useState({
@@ -18,6 +18,9 @@ export const SettingsManager: React.FC = () => {
     announcement: settings.announcement || '',
     enablePinnedSection: settings.enablePinnedSection ?? true,
     enableClickCounter: settings.enableClickCounter ?? true,
+    enableSiteFeed: settings.enableSiteFeed ?? true,
+    siteFeedTitle: settings.siteFeedTitle || '站点快讯 & 动态精选',
+    siteFeedSubtitle: settings.siteFeedSubtitle || '聚合精选站点的最新资讯、架构升级与功能演进动态',
     defaultSearchEngineId: settings.defaultSearchEngineId || 'google',
     maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
     maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
@@ -41,6 +44,9 @@ export const SettingsManager: React.FC = () => {
       announcement: settings.announcement || '',
       enablePinnedSection: settings.enablePinnedSection ?? true,
       enableClickCounter: settings.enableClickCounter ?? true,
+      enableSiteFeed: settings.enableSiteFeed ?? true,
+      siteFeedTitle: settings.siteFeedTitle || '站点快讯 & 动态精选',
+      siteFeedSubtitle: settings.siteFeedSubtitle || '聚合精选站点的最新资讯、架构升级与功能演进动态',
       defaultSearchEngineId: settings.defaultSearchEngineId || 'google',
       maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
       maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
@@ -296,6 +302,72 @@ export const SettingsManager: React.FC = () => {
                   {preset.label}
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 站点快讯 Feed 设置 */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2">
+              <Rss className="w-4 h-4 text-amber-500" />
+              <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                站点快讯 & 动态 Feed 配置
+              </h4>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAdminTab('feed')}
+              className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <span>前往快讯排布中心 ›</span>
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900 dark:text-white">
+                  在前台分类导航中展示「站点快讯」Tab
+                </p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  开启后访客与管理员可在前台一键切换到类似 RSS 的精选动态速报页面
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                checked={formData.enableSiteFeed}
+                onChange={(e) => setFormData({ ...formData, enableSiteFeed: e.target.checked })}
+                className="w-5 h-5 text-indigo-600 rounded cursor-pointer"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  快讯页面主标题
+                </label>
+                <input
+                  type="text"
+                  value={formData.siteFeedTitle}
+                  onChange={(e) => setFormData({ ...formData, siteFeedTitle: e.target.value })}
+                  placeholder="站点快讯 & 动态精选"
+                  className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                  快讯副标题与介绍
+                </label>
+                <input
+                  type="text"
+                  value={formData.siteFeedSubtitle}
+                  onChange={(e) => setFormData({ ...formData, siteFeedSubtitle: e.target.value })}
+                  placeholder="聚合精选站点的最新资讯..."
+                  className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -9,12 +9,14 @@ import {
   Database,
   Shield,
   FileCode2,
+  Rss,
+  Sparkles,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 
 export const Dashboard: React.FC = () => {
-  const { stats, refreshStats, bookmarks, categories } = useBookmarkStore();
+  const { stats, refreshStats, bookmarks, categories, settings } = useBookmarkStore();
   const { setAdminTab } = useUiStore();
 
   useEffect(() => {
@@ -25,69 +27,90 @@ export const Dashboard: React.FC = () => {
   const totalCategories = stats?.totalCategories ?? categories.length;
   const totalClicks = stats?.totalClicks ?? bookmarks.reduce((sum, b) => sum + (b.clickCount || 0), 0);
   const pinnedCount = stats?.pinnedBookmarks ?? bookmarks.filter((b) => b.isPinned).length;
+  const feedCount = bookmarks.filter(
+    (b) => b.inFeed || (settings.feedBookmarkIds && settings.feedBookmarkIds.includes(b.id))
+  ).length;
   const topBookmarks = stats?.topBookmarks ?? [...bookmarks].sort((a, b) => (b.clickCount || 0) - (a.clickCount || 0)).slice(0, 5);
 
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Metric Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
         {/* Total Bookmarks */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               书签总数
             </p>
-            <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mt-1">
               {totalBookmarks}
             </h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-            <Bookmark className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+            <Bookmark className="w-5 h-5" />
+          </div>
+        </div>
+
+        {/* Feed Bookmarks */}
+        <div
+          onClick={() => setAdminTab('feed')}
+          className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer hover:border-amber-300 dark:hover:border-amber-700 transition-all"
+        >
+          <div>
+            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              快讯精选
+            </p>
+            <h3 className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400 mt-1">
+              {feedCount}
+            </h3>
+          </div>
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Rss className="w-5 h-5" />
           </div>
         </div>
 
         {/* Total Categories */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               导航分类
             </p>
-            <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mt-1">
               {totalCategories}
             </h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-            <Folder className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-sky-50 dark:bg-sky-950/50 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <Folder className="w-5 h-5" />
           </div>
         </div>
 
         {/* Total Clicks */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
               总点击计数
             </p>
-            <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mt-1">
               {totalClicks}
             </h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-            <Eye className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Eye className="w-5 h-5" />
           </div>
         </div>
 
         {/* Pinned Bookmarks */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm flex items-center justify-between">
+        <div className="p-4 sm:p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 shadow-sm flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              置顶书签
+              常用置顶
             </p>
-            <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">
+            <h3 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white mt-1">
               {pinnedCount}
             </h3>
           </div>
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-            <Pin className="w-6 h-6" />
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-purple-50 dark:bg-purple-950/50 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+            <Pin className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -99,15 +122,15 @@ export const Dashboard: React.FC = () => {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="text-base font-bold text-zinc-900 dark:text-white">
-                热门访问书签 (Top 5)
+                热门高频访问书签
               </h3>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                根据前台用户点击量实时更新
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                按实际点击量统计前 5 名
               </p>
             </div>
             <button
               onClick={() => setAdminTab('bookmarks')}
-              className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium"
             >
               管理全部书签 &rarr;
             </button>
@@ -115,18 +138,18 @@ export const Dashboard: React.FC = () => {
 
           <div className="space-y-3">
             {topBookmarks.length === 0 ? (
-              <p className="text-xs text-zinc-400 py-6 text-center">暂无点击数据</p>
+              <p className="text-xs text-zinc-400 py-6 text-center">暂无书签点击数据</p>
             ) : (
               topBookmarks.map((bm, index) => (
                 <div
                   key={bm.id}
-                  className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200/50 dark:border-zinc-700/50 hover:bg-zinc-100/80 dark:hover:bg-zinc-800 transition-colors"
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50/70 dark:bg-zinc-800/40 hover:bg-zinc-100/80 dark:hover:bg-zinc-800/80 transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 text-center font-bold text-sm text-zinc-400">
+                    <span className="w-5 font-mono text-xs font-bold text-zinc-400 text-center">
                       #{index + 1}
                     </span>
-                    <div className="w-8 h-8 rounded-xl bg-white dark:bg-zinc-700 flex items-center justify-center overflow-hidden border border-zinc-200/60 dark:border-zinc-600">
+                    <div className="w-8 h-8 rounded-lg bg-white dark:bg-zinc-700 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-600">
                       {bm.favicon ? (
                         <img src={bm.favicon} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />
                       ) : (
@@ -176,6 +199,13 @@ export const Dashboard: React.FC = () => {
               >
                 <Plus className="w-4 h-4" />
                 <span>添加与管理书签</span>
+              </button>
+              <button
+                onClick={() => setAdminTab('feed')}
+                className="flex items-center gap-3 p-3 rounded-xl bg-amber-50/70 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-900/40 text-amber-800 dark:text-amber-300 text-sm font-bold transition-colors cursor-pointer text-left"
+              >
+                <Rss className="w-4 h-4 text-amber-600" />
+                <span>快讯动态精选排布</span>
               </button>
               <button
                 onClick={() => setAdminTab('categories')}

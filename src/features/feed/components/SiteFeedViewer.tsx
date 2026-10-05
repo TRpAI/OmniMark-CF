@@ -50,9 +50,9 @@ interface FeedArticle {
 }
 
 export const SiteFeedViewer: React.FC = () => {
-  const { bookmarks, categories, setActiveCategory, openBookmarkDetail, recordBookmarkClick } =
+  const { bookmarks, categories, settings, setActiveCategory, openBookmarkDetail, recordBookmarkClick } =
     useBookmarkStore();
-  const { showToast } = useUiStore();
+  const { showToast, setCurrentView, setAdminTab } = useUiStore();
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [feedSearch, setFeedSearch] = useState<string>('');
@@ -62,9 +62,22 @@ export const SiteFeedViewer: React.FC = () => {
   const [savedArticles, setSavedArticles] = useState<Record<string, boolean>>({});
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Generate realistic, rich, beautiful site updates based on actual bookmarks
-  const feedItems: FeedArticle[] = useMemo(() => {
+  // Filter bookmarks: ONLY include those configured in backend
+  const configuredBookmarks = useMemo(() => {
     if (!bookmarks || bookmarks.length === 0) return [];
+    const feedIds = settings.feedBookmarkIds;
+
+    // Check if bookmark is marked inFeed or present in feedBookmarkIds
+    return bookmarks.filter((bm) => {
+      if (bm.inFeed === true) return true;
+      if (feedIds && feedIds.length > 0 && feedIds.includes(bm.id)) return true;
+      return false;
+    });
+  }, [bookmarks, settings.feedBookmarkIds]);
+
+  // Generate realistic, rich, beautiful site updates based on configured bookmarks
+  const feedItems: FeedArticle[] = useMemo(() => {
+    if (!configuredBookmarks || configuredBookmarks.length === 0) return [];
 
     const categoryMap = new Map(categories.map((c) => [c.id, c]));
 
@@ -113,25 +126,30 @@ export const SiteFeedViewer: React.FC = () => {
 
     const generated: FeedArticle[] = [];
 
-    bookmarks.forEach((bm, bIdx) => {
+    configuredBookmarks.forEach((bm, bIdx) => {
       const cat = categoryMap.get(bm.categoryId) || {
         id: 'default',
         name: '通用站点',
         icon: 'Folder',
       };
 
-      // Generate 1-2 curated updates per bookmark
-      const count = bIdx < 6 ? 2 : 1;
+      // Generate 1-2 curated updates per configured bookmark
+      const count = bm.feedCustomNote ? 1 : bIdx < 4 ? 2 : 1;
       for (let i = 0; i < count; i++) {
         const template = templates[(bIdx + i) % templates.length];
         const timeInfo = timeOffsets[(bIdx * 2 + i) % timeOffsets.length];
 
         const articleTitle =
-          i === 0
+          bm.feedCustomNote && i === 0
+            ? `${bm.title} · 最新动态速报`
+            : i === 0
             ? `${bm.title} · ${template.titleSuffix}`
             : `【动态速递】${bm.title}：${bm.description ? bm.description.slice(0, 24) + '...' : '精选功能更新与技术前瞻'}`;
 
-        const articleSummary = template.summaryTemplate(bm.title, bm.description);
+        const articleSummary =
+          bm.feedCustomNote && i === 0
+            ? bm.feedCustomNote
+            : template.summaryTemplate(bm.title, bm.description);
 
         const now = new Date(Date.now() - timeInfo.hours * 3600 * 1000);
         const publishedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -153,14 +171,14 @@ export const SiteFeedViewer: React.FC = () => {
           tags: bm.tags && bm.tags.length > 0 ? bm.tags.slice(0, 3) : template.tags,
           views: (bm.clickCount || 1) * 12 + template.viewsMultiplier + (bIdx * 17) % 150,
           likes: Math.floor(((bm.clickCount || 1) * 4 + 18 + (bIdx * 7) % 35)),
-          isHot: template.isHot || bm.isPinned,
-          isFeatured: i === 0 && (bIdx === 0 || bIdx === 1),
+          isHot: bm.feedHighlight || template.isHot || bm.isPinned,
+          isFeatured: bm.feedHighlight || (i === 0 && (bIdx === 0 || bIdx === 1)),
         });
       }
     });
 
     return generated;
-  }, [bookmarks, categories]);
+  }, [configuredBookmarks, categories]);
 
   // Filter feed items
   const filteredFeed = useMemo(() => {
@@ -245,10 +263,11 @@ export const SiteFeedViewer: React.FC = () => {
               <span>智能聚合 · 站点快讯 Feed</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              站点动态 & 精选快讯
+              {settings.siteFeedTitle || '站点动态 & 精选快讯'}
             </h1>
             <p className="text-xs sm:text-sm text-indigo-200/80 max-w-xl leading-relaxed">
-              实时聚合后台所有书签站点的最新资讯、技术博客、版本发布与精选动态，比传统 RSS 更直观、精美、流畅。
+              {settings.siteFeedSubtitle ||
+                '实时聚合后台精选书签站点的最新资讯、技术博客、版本发布与动态速递，比传统 RSS 更直观、精美、流畅。'}
             </p>
           </div>
 
