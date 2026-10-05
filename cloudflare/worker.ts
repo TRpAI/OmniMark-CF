@@ -33,13 +33,183 @@ function sStr(v: any, def = ''): string { return (v === undefined || v === null)
 function sNum(v: any, def = 0): number { const n = Number(v); return isNaN(n) ? def : n; }
 function sBool(v: any, def = 0): number { if (v === undefined || v === null) return def; return v ? 1 : 0; }
 
+export async function runDatabaseRepair(env: Env) {
+  if (!env || !env.DB) {
+    throw new Error('未检测到 D1 数据库绑定，请在 Cloudflare Worker 设置中将 D1 变量名绑定为 "DB"');
+  }
+
+  // 1. 确保核心表结构存在
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      passwordHash TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      tokenHash TEXT NOT NULL UNIQUE,
+      ipHash TEXT,
+      userAgentHash TEXT,
+      expiresAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT 'Folder',
+      sortOrder INTEGER DEFAULT 0,
+      isPrivate INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id TEXT PRIMARY KEY,
+      categoryId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      description TEXT,
+      favicon TEXT,
+      tags TEXT,
+      clickCount INTEGER DEFAULT 0,
+      sortOrder INTEGER DEFAULT 0,
+      isPinned INTEGER DEFAULT 0,
+      isPrivate INTEGER DEFAULT 0,
+      inFeed INTEGER DEFAULT 0,
+      feedCustomNote TEXT DEFAULT '',
+      feedHighlight INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS custom_pages (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      icon TEXT DEFAULT 'FileText',
+      content TEXT NOT NULL,
+      isPrivate INTEGER DEFAULT 0,
+      sortOrder INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `).run();
+
+  // 2. 字段兼容性自愈（向历史旧版表无缝补齐新增字段）
+  const alterColumns = [
+    'ALTER TABLE categories ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN inFeed INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN feedCustomNote TEXT DEFAULT \'\'',
+    'ALTER TABLE bookmarks ADD COLUMN feedHighlight INTEGER DEFAULT 0',
+    'ALTER TABLE custom_pages ADD COLUMN isPrivate INTEGER DEFAULT 0',
+  ];
+  for (const sql of alterColumns) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch {}
+  }
+
+  // 3. 检查是否有分类，如无则插入默认精选分类
+  const catCountRow: any = await env.DB.prepare('SELECT COUNT(*) as count FROM categories').first();
+  let defaultCatId = 'cat-featured';
+  if (!catCountRow || Number(catCountRow.count) === 0) {
+    await env.DB.prepare(`
+      INSERT INTO categories (id, name, icon, sortOrder, isPrivate, createdAt) VALUES
+      ('cat-featured', '精选常用', 'Sparkles', 1, 0, datetime('now')),
+      ('cat-dev', '开发编程', 'Code', 2, 0, datetime('now')),
+      ('cat-ai', 'AI 人工智能', 'Cpu', 3, 0, datetime('now')),
+      ('cat-tools', '效率工具', 'Wrench', 4, 0, datetime('now'))
+    `).run();
+  } else {
+    const firstCat: any = await env.DB.prepare('SELECT id FROM categories ORDER BY sortOrder ASC LIMIT 1').first();
+    if (firstCat) defaultCatId = firstCat.id;
+  }
+
+  // 4. 修复孤立书签
+  let fixedBookmarks = 0;
+  try {
+    const orphanBookmarks: any = await env.DB.prepare(`
+      SELECT b.id FROM bookmarks b
+      LEFT JOIN categories c ON b.categoryId = c.id
+      WHERE c.id IS NULL
+    `).all();
+
+    if (orphanBookmarks?.results && orphanBookmarks.results.length > 0) {
+      for (const ob of orphanBookmarks.results) {
+        await env.DB.prepare('UPDATE bookmarks SET categoryId = ? WHERE id = ?').bind(sStr(defaultCatId), sStr(ob.id)).run();
+        fixedBookmarks++;
+      }
+    }
+  } catch (e) {}
+
+  // 5. 确保基础站点设置存在
+  const settingsRow: any = await env.DB.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
+  if (!settingsRow) {
+    const defaultSettings = {
+      title: 'OmniMark 导航',
+      subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
+      logoText: 'OmniMark',
+      footerText: 'Powered by OmniMark · 高性能原子存储与现代化边缘部署',
+      announcement: '',
+      enableClickCounter: true,
+      enablePinnedSection: true,
+      enableSiteFeed: true,
+      siteFeedTitle: '站点动态 & 精选快讯',
+      siteFeedSubtitle: '全站精选优质站点实时动态，按分类轻松探索',
+      maxBookmarksPerCategory: 0,
+      maxTotalBookmarks: 0,
+    };
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('site_config', ?)").bind(JSON.stringify(defaultSettings)).run();
+  }
+
+  // 6. 清除 KV 缓存
+  if (env.CACHE_KV) {
+    await Promise.all([
+      env.CACHE_KV.delete('cache:categories:all'),
+      env.CACHE_KV.delete('cache:bookmarks:all:'),
+    ]).catch(() => {});
+  }
+
+  const [finalCats, finalBms]: any = await Promise.all([
+    env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
+    env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
+  ]);
+
+  return {
+    repaired: true,
+    fixedBookmarks,
+    categoriesCount: finalCats?.count || 0,
+    bookmarksCount: finalBms?.count || 0,
+  };
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    const path = url.pathname;
+    const rawPath = url.pathname;
+    const method = (request.method || 'GET').toUpperCase();
 
     // CORS preflight
-    if (request.method === 'OPTIONS') {
+    if (method === 'OPTIONS') {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
@@ -51,15 +221,81 @@ export default {
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
     };
 
+    // 路径标准化：去除末尾斜杠，并统一去除 /api 前缀
+    let path = rawPath.replace(/\/+$/, '') || '/';
+    if (path.startsWith('/api/')) {
+      path = path.substring(4);
+    } else if (path === '/api') {
+      path = '/health';
+    }
+
     try {
-      // 1. Health check
-      if (path === '/api/health') {
-        return new Response(JSON.stringify({ status: 'ok', runtime: 'Cloudflare Workers (D1 + KV)' }), {
-          headers: corsHeaders,
-        });
+      // 1. Health check (with auto-repair on uninitialized DB)
+      if (path === '/health' && (method === 'GET' || method === 'HEAD')) {
+        try {
+          const [catCountRow, bmCountRow]: any = await Promise.all([
+            env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
+            env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
+          ]);
+
+          return new Response(JSON.stringify({
+            status: 'ok',
+            service: 'OmniMark Cloudflare Edge Worker',
+            runtime: 'Cloudflare Workers (D1 + KV)',
+            version: '2.0.0',
+            storage: {
+              status: 'healthy',
+              categoriesCount: catCountRow?.count || 0,
+              bookmarksCount: bmCountRow?.count || 0,
+            },
+          }), { headers: corsHeaders });
+        } catch {
+          const rep = await runDatabaseRepair(env);
+          return new Response(JSON.stringify({
+            status: 'ok',
+            service: 'OmniMark Cloudflare Edge Worker',
+            runtime: 'Cloudflare Workers (D1 + KV)',
+            version: '2.0.0',
+            storage: {
+              status: 'healthy',
+              categoriesCount: rep.categoriesCount,
+              bookmarksCount: rep.bookmarksCount,
+              autoRepaired: true,
+            },
+          }), { headers: corsHeaders });
+        }
+      }
+
+      // 1.1 Self-healing repair endpoint (supports both POST and GET)
+      if ((path === '/health/repair' || path === '/repair') && (method === 'POST' || method === 'GET')) {
+        try {
+          const repairResult = await runDatabaseRepair(env);
+          return new Response(JSON.stringify({
+            success: true,
+            repaired: true,
+            message: '边缘端 D1 数据库自愈成功：表结构与新字段已校验补齐，孤立书签已重定向，缓存已更新',
+            data: {
+              repaired: true,
+              fixedBookmarks: repairResult.fixedBookmarks,
+              categoriesCount: repairResult.categoriesCount,
+              bookmarksCount: repairResult.bookmarksCount,
+              storage: {
+                healthy: true,
+                status: 'healthy',
+                runtime: 'Cloudflare Workers (D1 + KV)',
+              },
+            },
+          }), { headers: corsHeaders });
+        } catch (repairErr: any) {
+          return new Response(JSON.stringify({
+            success: false,
+            repaired: false,
+            error: '自愈执行失败: ' + (repairErr?.message || '未知错误'),
+          }), { status: 500, headers: corsHeaders });
+        }
       }
 
       // 2. Bookmarks list with KV Cache Acceleration

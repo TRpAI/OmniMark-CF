@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Info,
   Server,
+  Wrench,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth.api';
 import { useAuthStore } from '../../../stores/auth.store';
@@ -250,13 +251,19 @@ export const UserManager: React.FC = () => {
                   </div>
                 )}
                 {healthData.storage?.status !== 'healthy' && (
-                  <div className="pt-2">
+                  <div className="pt-2 space-y-1.5">
+                    {healthData.storage?.message && (
+                      <p className="text-[11px] text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg leading-relaxed">
+                        {healthData.storage.message}
+                      </p>
+                    )}
                     <button
                       onClick={handleRepairStorage}
                       disabled={isRepairing}
-                      className="w-full py-2 px-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 text-indigo-700 dark:text-indigo-300 text-xs font-medium transition-colors cursor-pointer"
+                      className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      {isRepairing ? '正在自愈修复...' : '一键执行存储自愈修复'}
+                      <Wrench className={`w-3.5 h-3.5 ${isRepairing ? 'animate-spin' : ''}`} />
+                      <span>{isRepairing ? '正在自愈修复中...' : '一键执行存储自愈修复'}</span>
                     </button>
                   </div>
                 )}

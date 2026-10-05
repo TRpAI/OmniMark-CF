@@ -18,7 +18,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(securityHeaders);
 
 // Comprehensive Health check with real-time storage read & write verification
-app.get('/api/health', (req: Request, res: Response) => {
+const handleHealth = (req: Request, res: Response) => {
   const storageCheck = jsonDb.verifyStorageHealth();
 
   const healthPayload = {
@@ -48,9 +48,12 @@ app.get('/api/health', (req: Request, res: Response) => {
     data: healthPayload,
     ...healthPayload,
   });
-});
+};
 
-// Self-healing / repair endpoint (supports both /api/health/repair and /health/repair)
+app.get('/api/health', handleHealth);
+app.get('/health', handleHealth);
+
+// Self-healing / repair endpoint (supports both /api/health/repair and /health/repair, GET and POST)
 const handleRepair = (req: Request, res: Response) => {
   const result = jsonDb.repairDatabase();
   const storageCheck = jsonDb.verifyStorageHealth();
@@ -66,8 +69,10 @@ const handleRepair = (req: Request, res: Response) => {
   });
 };
 
-app.post('/api/health/repair', handleRepair);
-app.post('/health/repair', handleRepair);
+app.all('/api/health/repair', handleRepair);
+app.all('/health/repair', handleRepair);
+app.all('/repair', handleRepair);
+app.all('/api/repair', handleRepair);
 
 // API Routes
 app.use('/api/auth', authRoutes);

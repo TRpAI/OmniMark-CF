@@ -130,6 +130,200 @@ function sStr(v, def = '') { return (v === undefined || v === null) ? def : Stri
 function sNum(v, def = 0) { const n = Number(v); return isNaN(n) ? def : n; }
 function sBool(v, def = 0) { if (v === undefined || v === null) return def; return v ? 1 : 0; }
 
+// 辅助函数：D1 数据库自动建表与自愈一致性修复
+async function runDatabaseRepair(env) {
+  if (!env || !env.DB) {
+    throw new Error('未检测到 D1 数据库绑定，请在 Cloudflare Worker 设置中将 D1 变量名绑定为 "DB"');
+  }
+
+  // 1. 确保核心表结构存在
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL UNIQUE,
+      passwordHash TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id TEXT PRIMARY KEY,
+      userId TEXT NOT NULL,
+      tokenHash TEXT NOT NULL UNIQUE,
+      ipHash TEXT,
+      userAgentHash TEXT,
+      expiresAt TEXT NOT NULL,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS categories (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      icon TEXT DEFAULT 'Folder',
+      sortOrder INTEGER DEFAULT 0,
+      isPrivate INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      id TEXT PRIMARY KEY,
+      categoryId TEXT NOT NULL,
+      title TEXT NOT NULL,
+      url TEXT NOT NULL,
+      description TEXT,
+      favicon TEXT,
+      tags TEXT,
+      clickCount INTEGER DEFAULT 0,
+      sortOrder INTEGER DEFAULT 0,
+      isPinned INTEGER DEFAULT 0,
+      isPrivate INTEGER DEFAULT 0,
+      inFeed INTEGER DEFAULT 0,
+      feedCustomNote TEXT DEFAULT '',
+      feedHighlight INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    )
+  `).run();
+
+  await env.DB.prepare(`
+    CREATE TABLE IF NOT EXISTS custom_pages (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      slug TEXT NOT NULL,
+      icon TEXT DEFAULT 'FileText',
+      content TEXT NOT NULL,
+      isPrivate INTEGER DEFAULT 0,
+      sortOrder INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    )
+  `).run();
+
+  // 2. 字段兼容性自愈（向历史旧版表无缝补齐新增字段）
+  const alterColumns = [
+    'ALTER TABLE categories ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN inFeed INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN feedCustomNote TEXT DEFAULT \'\'',
+    'ALTER TABLE bookmarks ADD COLUMN feedHighlight INTEGER DEFAULT 0',
+    'ALTER TABLE custom_pages ADD COLUMN isPrivate INTEGER DEFAULT 0',
+  ];
+  for (const sql of alterColumns) {
+    try {
+      await env.DB.prepare(sql).run();
+    } catch {}
+  }
+
+  // 3. 检查是否有分类，如无则插入默认精选分类
+  const catCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM categories').first();
+  let defaultCatId = 'cat-featured';
+  if (!catCountRow || Number(catCountRow.count) === 0) {
+    await env.DB.prepare(`
+      INSERT INTO categories (id, name, icon, sortOrder, isPrivate, createdAt) VALUES
+      ('cat-featured', '精选常用', 'Sparkles', 1, 0, datetime('now')),
+      ('cat-dev', '开发编程', 'Code', 2, 0, datetime('now')),
+      ('cat-ai', 'AI 人工智能', 'Cpu', 3, 0, datetime('now')),
+      ('cat-tools', '效率工具', 'Wrench', 4, 0, datetime('now'))
+    `).run();
+  } else {
+    const firstCat = await env.DB.prepare('SELECT id FROM categories ORDER BY sortOrder ASC LIMIT 1').first();
+    if (firstCat) defaultCatId = firstCat.id;
+  }
+
+  // 4. 修复孤立书签（检查 categoryId 不在 categories 中的书签并重定向到有效分类）
+  let fixedBookmarks = 0;
+  try {
+    const orphanBookmarks = await env.DB.prepare(`
+      SELECT b.id FROM bookmarks b
+      LEFT JOIN categories c ON b.categoryId = c.id
+      WHERE c.id IS NULL
+    `).all();
+
+    if (orphanBookmarks?.results && orphanBookmarks.results.length > 0) {
+      for (const ob of orphanBookmarks.results) {
+        await env.DB.prepare('UPDATE bookmarks SET categoryId = ? WHERE id = ?').bind(sStr(defaultCatId), sStr(ob.id)).run();
+        fixedBookmarks++;
+      }
+    }
+  } catch (e) {}
+
+  // 5. 确保默认管理员账户存在
+  const userCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
+  if (!userCountRow || Number(userCountRow.count) === 0) {
+    const freshHash = await hashPassword('admin123');
+    await env.DB.prepare(
+      'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, datetime("now"))'
+    ).bind('usr-admin-default', 'admin', freshHash).run();
+  }
+
+  // 6. 确保基础站点设置存在
+  const settingsRow = await env.DB.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
+  if (!settingsRow) {
+    const defaultSettings = {
+      title: 'OmniMark 导航',
+      subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
+      logoText: 'OmniMark',
+      footerText: 'Powered by OmniMark · 高性能原子存储与现代化边缘部署',
+      announcement: '',
+      enableClickCounter: true,
+      enablePinnedSection: true,
+      enableSiteFeed: true,
+      siteFeedTitle: '站点动态 & 精选快讯',
+      siteFeedSubtitle: '全站精选优质站点实时动态，按分类轻松探索',
+      maxBookmarksPerCategory: 0,
+      maxTotalBookmarks: 0,
+      searchEngines: [
+        { id: 'google', name: 'Google', url: 'https://www.google.com/search?q={q}', isDefault: true, icon: 'Search' },
+        { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q={q}', icon: 'Globe' },
+        { id: 'github', name: 'GitHub', url: 'https://github.com/search?q={q}', icon: 'Code' },
+      ],
+      defaultSearchEngine: 'google',
+    };
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('site_config', ?)").bind(JSON.stringify(defaultSettings)).run();
+  }
+
+  // 7. 确保默认关于页面存在
+  const pagesCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM custom_pages').first();
+  if (!pagesCountRow || Number(pagesCountRow.count) === 0) {
+    await env.DB.prepare(`
+      INSERT INTO custom_pages (id, title, slug, icon, content, isPrivate, sortOrder, createdAt, updatedAt)
+      VALUES ('page-about', '关于本站', 'about', 'Info', '# 关于 OmniMark 导航\\n\\n欢迎使用 OmniMark 现代化极简书签与网址导航中心。\\n\\n- **极致性能**：极简高响应架构\\n- **安全隐私**：分类与书签支持公开/私密隔离\\n- **多端同步**：支持 Microsoft OneDrive 云备份与 D1 边缘同步', 0, 1, datetime('now'), datetime('now'))
+    `).run();
+  }
+
+  // 8. 清除 KV 缓存
+  if (env.CACHE_KV) {
+    await Promise.all([
+      env.CACHE_KV.delete('cache:categories:all'),
+      env.CACHE_KV.delete('cache:bookmarks:all:'),
+    ]).catch(() => {});
+  }
+
+  const [finalCats, finalBms] = await Promise.all([
+    env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
+    env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
+  ]);
+
+  return {
+    repaired: true,
+    fixedBookmarks,
+    categoriesCount: finalCats?.count || 0,
+    bookmarksCount: finalBms?.count || 0,
+  };
+}
+
 // 内存级 IP 频率限制器（防暴力破解）
 const ipRateLimitMap = new Map();
 function checkRateLimit(ip, maxRequests = 5, windowMs = 60000) {
@@ -150,7 +344,7 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const rawPath = url.pathname;
-    const method = request.method;
+    const method = (request.method || 'GET').toUpperCase();
     const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'edge-client';
 
     // CORS 跨域预检
@@ -173,8 +367,13 @@ export default {
       'Referrer-Policy': 'strict-origin-when-cross-origin',
     };
 
-    // 路径标准化：同时兼容 /api/... 和 /... 两种请求格式
-    const path = rawPath.startsWith('/api/') ? rawPath.substring(4) : rawPath;
+    // 路径标准化：去除末尾斜杠，并统一去除 /api 前缀（同时兼容 /api/... 和 /...）
+    let path = rawPath.replace(/\/+$/, '') || '/';
+    if (path.startsWith('/api/')) {
+      path = path.substring(4);
+    } else if (path === '/api') {
+      path = '/health';
+    }
 
     // 统一 JSON 响应助手
     const json = (data, status = 200) =>
@@ -214,7 +413,7 @@ export default {
       // -------------------------------------------------------------
       // 1. 服务探活与存储一致性检查接口
       // -------------------------------------------------------------
-      if (path === '/health' && method === 'GET') {
+      if (path === '/health' && (method === 'GET' || method === 'HEAD')) {
         try {
           const [catCountRow, bmCountRow] = await Promise.all([
             env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
@@ -238,193 +437,54 @@ export default {
             },
           });
         } catch (dbErr) {
-          return json({
-            status: 'degraded',
-            service: 'OmniMark Cloudflare Edge Worker',
-            error: 'Storage read check failed: ' + (dbErr?.message || 'unknown error'),
-            timestamp: new Date().toISOString(),
-          }, 500);
+          // 数据库未初始化或表缺失，自动触发静默自愈与建表，避免返回存储异常
+          try {
+            const repairResult = await runDatabaseRepair(env);
+            return json({
+              status: 'ok',
+              service: 'OmniMark Cloudflare Edge Worker',
+              runtime: 'Cloudflare Workers (D1 + KV)',
+              version: '2.0.0',
+              timestamp: new Date().toISOString(),
+              storage: {
+                status: 'healthy',
+                categoriesCount: repairResult.categoriesCount,
+                bookmarksCount: repairResult.bookmarksCount,
+                autoRepaired: true,
+              },
+              security: {
+                authMode: 'single-user',
+                passwordAlgorithm: 'PBKDF2-HMAC-SHA512 (210,000 iterations)',
+              },
+            });
+          } catch (autoErr) {
+            return json({
+              status: 'degraded',
+              service: 'OmniMark Cloudflare Edge Worker',
+              error: 'Storage read check failed: ' + (autoErr?.message || dbErr?.message || 'unknown error'),
+              timestamp: new Date().toISOString(),
+              storage: {
+                status: 'error',
+                message: autoErr?.message || dbErr?.message,
+              },
+            }, 200);
+          }
         }
       }
 
-      // 1.1 边缘端数据库自愈与一致性修复接口 (一键自愈)
-      if ((path === '/health/repair' || path === '/repair') && method === 'POST') {
+      // 1.1 边缘端数据库自愈与一致性修复接口 (一键自愈，支持 GET 与 POST)
+      if ((path === '/health/repair' || path === '/repair') && (method === 'POST' || method === 'GET')) {
         try {
-          // 1. 确保核心表结构存在
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS users (
-              id TEXT PRIMARY KEY,
-              username TEXT NOT NULL UNIQUE,
-              passwordHash TEXT NOT NULL,
-              createdAt TEXT NOT NULL
-            )
-          `).run();
-
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS sessions (
-              id TEXT PRIMARY KEY,
-              userId TEXT NOT NULL,
-              tokenHash TEXT NOT NULL UNIQUE,
-              ipHash TEXT,
-              userAgentHash TEXT,
-              expiresAt TEXT NOT NULL,
-              createdAt TEXT NOT NULL
-            )
-          `).run();
-
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS categories (
-              id TEXT PRIMARY KEY,
-              name TEXT NOT NULL,
-              icon TEXT DEFAULT 'Folder',
-              sortOrder INTEGER DEFAULT 0,
-              isPrivate INTEGER DEFAULT 0,
-              createdAt TEXT NOT NULL
-            )
-          `).run();
-
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS bookmarks (
-              id TEXT PRIMARY KEY,
-              categoryId TEXT NOT NULL,
-              title TEXT NOT NULL,
-              url TEXT NOT NULL,
-              description TEXT,
-              favicon TEXT,
-              tags TEXT,
-              clickCount INTEGER DEFAULT 0,
-              sortOrder INTEGER DEFAULT 0,
-              isPinned INTEGER DEFAULT 0,
-              isPrivate INTEGER DEFAULT 0,
-              createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL
-            )
-          `).run();
-
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS settings (
-              key TEXT PRIMARY KEY,
-              value TEXT NOT NULL
-            )
-          `).run();
-
-          await env.DB.prepare(`
-            CREATE TABLE IF NOT EXISTS custom_pages (
-              id TEXT PRIMARY KEY,
-              title TEXT NOT NULL,
-              slug TEXT NOT NULL,
-              icon TEXT DEFAULT 'FileText',
-              content TEXT NOT NULL,
-              isPrivate INTEGER DEFAULT 0,
-              sortOrder INTEGER DEFAULT 0,
-              createdAt TEXT NOT NULL,
-              updatedAt TEXT NOT NULL
-            )
-          `).run();
-
-          // 2. 字段兼容性自愈（向历史旧版表无缝补齐 isPrivate 等字段）
-          try {
-            await env.DB.prepare('ALTER TABLE categories ADD COLUMN isPrivate INTEGER DEFAULT 0').run();
-          } catch (e) {
-            // 已存在则忽略
-          }
-          try {
-            await env.DB.prepare('ALTER TABLE bookmarks ADD COLUMN isPrivate INTEGER DEFAULT 0').run();
-          } catch (e) {
-            // 已存在则忽略
-          }
-
-          // 3. 检查是否有分类，如无则插入默认精选分类
-          const catCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM categories').first();
-          let defaultCatId = 'cat-featured';
-          if (!catCountRow || Number(catCountRow.count) === 0) {
-            await env.DB.prepare(`
-              INSERT INTO categories (id, name, icon, sortOrder, isPrivate, createdAt) VALUES
-              ('cat-featured', '精选常用', 'Sparkles', 1, 0, datetime('now')),
-              ('cat-dev', '开发编程', 'Code', 2, 0, datetime('now')),
-              ('cat-ai', 'AI 人工智能', 'Cpu', 3, 0, datetime('now')),
-              ('cat-tools', '效率工具', 'Wrench', 4, 0, datetime('now'))
-            `).run();
-          } else {
-            const firstCat = await env.DB.prepare('SELECT id FROM categories ORDER BY sortOrder ASC LIMIT 1').first();
-            if (firstCat) defaultCatId = firstCat.id;
-          }
-
-          // 4. 修复孤立书签（检查 categoryId 不在 categories 中的书签并重定向到有效分类）
-          let fixedBookmarks = 0;
-          try {
-            const orphanBookmarks = await env.DB.prepare(`
-              SELECT b.id FROM bookmarks b
-              LEFT JOIN categories c ON b.categoryId = c.id
-              WHERE c.id IS NULL
-            `).all();
-
-            if (orphanBookmarks?.results && orphanBookmarks.results.length > 0) {
-              for (const ob of orphanBookmarks.results) {
-                await env.DB.prepare('UPDATE bookmarks SET categoryId = ? WHERE id = ?').bind(defaultCatId, ob.id).run();
-                fixedBookmarks++;
-              }
-            }
-          } catch (e) {}
-
-          // 5. 确保默认管理员账户存在
-          const userCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
-          if (!userCountRow || Number(userCountRow.count) === 0) {
-            const freshHash = await hashPassword('admin123');
-            await env.DB.prepare(
-              'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, datetime("now"))'
-            ).bind('usr-admin-default', 'admin', freshHash).run();
-          }
-
-          // 6. 确保基础站点设置存在
-          const settingsRow = await env.DB.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
-          if (!settingsRow) {
-            const defaultSettings = {
-              title: 'OmniMark 导航',
-              subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
-              logoText: 'OmniMark',
-              footerText: 'Powered by OmniMark · 高性能原子存储与现代化边缘部署',
-              announcement: '',
-              enableClickCounter: true,
-              enablePinnedSection: true,
-              maxBookmarksPerCategory: 0,
-              maxTotalBookmarks: 0,
-              searchEngines: [
-                { id: 'google', name: 'Google', url: 'https://www.google.com/search?q={q}', isDefault: true, icon: 'Search' },
-                { id: 'bing', name: 'Bing', url: 'https://www.bing.com/search?q={q}', icon: 'Globe' },
-                { id: 'github', name: 'GitHub', url: 'https://github.com/search?q={q}', icon: 'Code' },
-              ],
-              defaultSearchEngine: 'google',
-            };
-            await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('site_config', ?)").bind(JSON.stringify(defaultSettings)).run();
-          }
-
-          // 7. 确保默认关于页面存在
-          const pagesCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM custom_pages').first();
-          if (!pagesCountRow || Number(pagesCountRow.count) === 0) {
-            await env.DB.prepare(`
-              INSERT INTO custom_pages (id, title, slug, icon, content, isPrivate, sortOrder, createdAt, updatedAt)
-              VALUES ('page-about', '关于本站', 'about', 'Info', '# 关于 OmniMark 导航\\n\\n欢迎使用 OmniMark 现代化极简书签与网址导航中心。\\n\\n- **极致性能**：极简高响应架构\\n- **安全隐私**：分类与书签支持公开/私密隔离\\n- **多端同步**：支持 Microsoft OneDrive 云备份与 D1 边缘同步', 0, 1, datetime('now'), datetime('now'))
-            `).run();
-          }
-
-          // 8. 清除 KV 缓存
-          invalidateCache();
-
-          const [finalCats, finalBms] = await Promise.all([
-            env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
-            env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
-          ]);
-
+          const repairResult = await runDatabaseRepair(env);
           return json({
             success: true,
             repaired: true,
             message: '边缘端 D1 数据库自愈成功：表结构与新字段已校验补齐，孤立书签已重定向，缓存已更新',
             data: {
               repaired: true,
-              fixedBookmarks,
-              categoriesCount: finalCats?.count || 0,
-              bookmarksCount: finalBms?.count || 0,
+              fixedBookmarks: repairResult.fixedBookmarks,
+              categoriesCount: repairResult.categoriesCount,
+              bookmarksCount: repairResult.bookmarksCount,
               storage: {
                 healthy: true,
                 status: 'healthy',
