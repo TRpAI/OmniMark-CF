@@ -40,4 +40,21 @@ export const aiApi = {
    */
   askAssistant: (query: string) =>
     apiClient.post<AiAssistantResult>('/ai/assistant', { query }),
+
+  /**
+   * 自动从上游厂商动态拉取可用模型列表
+   */
+  fetchUpstreamModels: (provider?: string, apiKey?: string, baseUrl?: string) =>
+    apiClient.post<string[]>('/ai/fetch-models', { provider, apiKey, baseUrl }),
+
+  /**
+   * 测试 AI API Token 与模型的连通性
+   */
+  testConnection: (provider?: string, apiKey?: string, baseUrl?: string, model?: string) =>
+    apiClient.post<{ success: boolean; model: string; message: string; sampleResponse?: string }>('/ai/test-connection', {
+      provider,
+      apiKey,
+      baseUrl,
+      model,
+    }),
 };

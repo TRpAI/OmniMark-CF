@@ -84,6 +84,34 @@ export class AiController {
       res.status(500).json({ success: false, error: err.message || '智能助理处理异常' });
     }
   }
+
+  /**
+   * POST /api/ai/fetch-models
+   * 自动从上游厂商动态拉取可用模型列表
+   */
+  async fetchModels(req: Request, res: Response): Promise<void> {
+    try {
+      const { provider, apiKey, baseUrl } = req.body;
+      const models = await aiService.fetchUpstreamModels(provider, apiKey, baseUrl);
+      res.json({ success: true, data: models });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message || '获取模型列表失败' });
+    }
+  }
+
+  /**
+   * POST /api/ai/test-connection
+   * 测试 AI API Key 与所选模型的连通性
+   */
+  async testConnection(req: Request, res: Response): Promise<void> {
+    try {
+      const { provider, apiKey, baseUrl, model } = req.body;
+      const result = await aiService.testConnection(provider, apiKey, baseUrl, model);
+      res.json({ success: true, data: result });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message || '模型连接测试失败' });
+    }
+  }
 }
 
 export const aiController = new AiController();

@@ -1,9 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Plus, Trash2, Search, Check, RefreshCw, Globe, Server, LayoutGrid, Rss, Sparkles, Sliders } from 'lucide-react';
+import {
+  Save,
+  Plus,
+  Trash2,
+  Search,
+  Check,
+  RefreshCw,
+  Globe,
+  Server,
+  LayoutGrid,
+  Rss,
+  Sparkles,
+  Sliders,
+  Bot,
+  Key,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  Cpu,
+  Wand2,
+  ChevronDown,
+} from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
-import { SearchEngine } from '../../../../packages/shared/types';
+import { SearchEngine, AiProviderType } from '../../../../packages/shared/types';
+import { DEFAULT_AI_PROVIDER_MODELS, DEFAULT_AI_BASE_URLS } from '../../../../packages/shared/constants';
 import { apiClient } from '../../../api/client';
+import { aiApi } from '../../../api/ai.api';
+
+const AI_PROVIDERS: Array<{
+  id: AiProviderType;
+  name: string;
+  badge: string;
+  desc: string;
+  defaultBaseUrl: string;
+  iconBg: string;
+}> = [
+  {
+    id: 'gemini',
+    name: 'Google Gemini',
+    badge: '官方推荐 / 极速',
+    desc: 'Google 原生大模型，支持 Gemini 2.5 Flash / Pro，分析与提取极快',
+    defaultBaseUrl: 'https://generativelanguage.googleapis.com',
+    iconBg: 'bg-indigo-500 text-white',
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek 深度求索',
+    badge: '高性价比 / 强推理',
+    desc: 'DeepSeek-V3 / DeepSeek-R1 满血版，代码与中文语义理解极佳',
+    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    iconBg: 'bg-blue-600 text-white',
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    badge: '全球顶尖',
+    desc: 'GPT-4o, GPT-4o-mini, o1, o3-mini 等全系列行业标杆大模型',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    iconBg: 'bg-emerald-600 text-white',
+  },
+  {
+    id: 'anthropic',
+    name: 'Anthropic Claude',
+    badge: '卓越语感',
+    desc: 'Claude 3.7 Sonnet, Claude 3.5 Haiku，超强长文本与精细总结',
+    defaultBaseUrl: 'https://api.anthropic.com/v1',
+    iconBg: 'bg-amber-600 text-white',
+  },
+  {
+    id: 'custom',
+    name: '自定义 / 兼容 OpenAI 协议',
+    badge: '自建 / 聚合中转',
+    desc: '支持 OneAPI, NewAPI, SiliconFlow, Ollama, Moonshot, Qwen 等任何中转或本地服务',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    iconBg: 'bg-purple-600 text-white',
+  },
+];
 
 export const SettingsManager: React.FC = () => {
   const { settings, updateSettings, loadInitialData, bookmarks } = useBookmarkStore();
@@ -25,6 +100,28 @@ export const SettingsManager: React.FC = () => {
     maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
     maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
   });
+
+  // AI 智能设置状态
+  const [aiProvider, setAiProvider] = useState<AiProviderType>(settings.aiProvider || 'gemini');
+  const [aiApiKey, setAiApiKey] = useState<string>(settings.aiApiKey || '');
+  const [aiBaseUrl, setAiBaseUrl] = useState<string>(settings.aiBaseUrl || DEFAULT_AI_BASE_URLS.gemini);
+  const [aiModel, setAiModel] = useState<string>(settings.aiModel || 'gemini-2.5-flash');
+  const [aiCustomModelName, setAiCustomModelName] = useState<string>(settings.aiCustomModelName || '');
+  const [isCustomModel, setIsCustomModel] = useState<boolean>(Boolean(settings.aiCustomModelName));
+  const [availableModels, setAvailableModels] = useState<string[]>(
+    settings.aiCustomModels && settings.aiCustomModels.length > 0
+      ? settings.aiCustomModels
+      : DEFAULT_AI_PROVIDER_MODELS[settings.aiProvider || 'gemini'] || DEFAULT_AI_PROVIDER_MODELS.gemini
+  );
+
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isFetchingModels, setIsFetchingModels] = useState(false);
+  const [isTestingAi, setIsTestingAi] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    sampleResponse?: string;
+  } | null>(null);
 
   const [engines, setEngines] = useState<SearchEngine[]>(settings.searchEngines || []);
   const [newEngine, setNewEngine] = useState({
@@ -51,8 +148,88 @@ export const SettingsManager: React.FC = () => {
       maxBookmarksPerCategory: settings.maxBookmarksPerCategory ?? 0,
       maxTotalBookmarks: settings.maxTotalBookmarks ?? 0,
     });
+
+    const currentProvider = settings.aiProvider || 'gemini';
+    setAiProvider(currentProvider);
+    setAiApiKey(settings.aiApiKey || '');
+    setAiBaseUrl(settings.aiBaseUrl || DEFAULT_AI_BASE_URLS[currentProvider] || '');
+    setAiModel(settings.aiModel || (currentProvider === 'deepseek' ? 'deepseek-chat' : 'gemini-2.5-flash'));
+    setAiCustomModelName(settings.aiCustomModelName || '');
+    setIsCustomModel(Boolean(settings.aiCustomModelName));
+    setAvailableModels(
+      settings.aiCustomModels && settings.aiCustomModels.length > 0
+        ? settings.aiCustomModels
+        : DEFAULT_AI_PROVIDER_MODELS[currentProvider] || DEFAULT_AI_PROVIDER_MODELS.gemini
+    );
+
     setEngines(settings.searchEngines || []);
   }, [settings]);
+
+  const handleProviderSelect = (newProvider: AiProviderType) => {
+    setAiProvider(newProvider);
+    const defaultUrl = DEFAULT_AI_BASE_URLS[newProvider] || 'https://api.openai.com/v1';
+    setAiBaseUrl(defaultUrl);
+
+    const defaultList = DEFAULT_AI_PROVIDER_MODELS[newProvider] || DEFAULT_AI_PROVIDER_MODELS.openai;
+    setAvailableModels(defaultList);
+    setAiModel(defaultList[0] || 'gemini-2.5-flash');
+    setTestResult(null);
+  };
+
+  const handleFetchUpstreamModels = async () => {
+    setIsFetchingModels(true);
+    setTestResult(null);
+    try {
+      const models = await aiApi.fetchUpstreamModels(aiProvider, aiApiKey.trim(), aiBaseUrl.trim());
+      if (models && models.length > 0) {
+        setAvailableModels(models);
+        if (!models.includes(aiModel) && !isCustomModel) {
+          setAiModel(models[0]);
+        }
+        showToast(`🎉 成功从上游获取到 ${models.length} 个可用模型！`, 'success');
+      } else {
+        showToast('上游未返回模型列表，已保留默认预设', 'info');
+      }
+    } catch (err: any) {
+      showToast(err?.message || '从上游获取模型列表失败，请检查 API Token 和 Base URL', 'error');
+    } finally {
+      setIsFetchingModels(false);
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    setIsTestingAi(true);
+    setTestResult(null);
+    const effectiveModel = isCustomModel ? aiCustomModelName.trim() : aiModel;
+    if (isCustomModel && !effectiveModel) {
+      showToast('请输入自定义模型名称后再测试', 'error');
+      setIsTestingAi(false);
+      return;
+    }
+
+    try {
+      const res = await aiApi.testConnection(
+        aiProvider,
+        aiApiKey.trim(),
+        aiBaseUrl.trim(),
+        effectiveModel
+      );
+      setTestResult({
+        success: true,
+        message: res.message || '模型连接正常！',
+        sampleResponse: res.sampleResponse,
+      });
+      showToast('✅ AI 模型连通性测试通过！', 'success');
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err?.message || '连接失败，请检查 Token 授权与接口地址配置。',
+      });
+      showToast(err?.message || '测试失败', 'error');
+    } finally {
+      setIsTestingAi(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,8 +238,15 @@ export const SettingsManager: React.FC = () => {
       await updateSettings({
         ...formData,
         searchEngines: engines,
+        // AI 智能设置持久化保存
+        aiProvider,
+        aiApiKey: aiApiKey.trim(),
+        aiBaseUrl: aiBaseUrl.trim(),
+        aiModel: isCustomModel ? (aiCustomModelName.trim() || aiModel) : aiModel,
+        aiCustomModelName: isCustomModel ? aiCustomModelName.trim() : '',
+        aiCustomModels: availableModels,
       });
-      showToast('站点设置保存成功，首页已即时应用', 'success');
+      showToast('站点设置及 AI 智能模型配置已成功保存！', 'success');
     } catch (err: any) {
       showToast(err.message || '保存失败', 'error');
     } finally {
@@ -104,13 +288,268 @@ export const SettingsManager: React.FC = () => {
             全局站点设置
           </h3>
           <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            自定义站点标题、页脚、首页书签显示数量上限、特色栏目以及搜索引擎配置
+            自定义站点标题、AI 智能助手模型供应源与 API Token、特色栏目以及搜索引擎配置
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSave} className="space-y-6">
-        {/* Basic Settings */}
+        {/* ========================================================= */}
+        {/* 1. AI 智能助手与大模型多厂商配置 (重点功能) */}
+        {/* ========================================================= */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-indigo-200/80 dark:border-indigo-900/50 shadow-sm space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-2xl pointer-events-none" />
+
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-4 border-b border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-xs">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <span>AI 智能助手与大模型配置</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                    多厂商支持 · 动态选模
+                  </span>
+                </h4>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                  驱动全站智能摘要、书签添加自动提取、语义搜索寻宝与 AI 问答
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleFetchUpstreamModels}
+                disabled={isFetchingModels}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/80 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/70 transition-all cursor-pointer disabled:opacity-50"
+                title="填入 API Token 后，点击自动从服务商拉取当前账号可用的最新模型列表"
+              >
+                {isFetchingModels ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                <span>{isFetchingModels ? '正在从上游获取...' : '🔍 从上游自动获取模型'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 1.1 Provider Cards Selection */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+              选择 AI 服务提供商 / 架构协议
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {AI_PROVIDERS.map((provider) => {
+                const isSelected = aiProvider === provider.id;
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() => handleProviderSelect(provider.id)}
+                    className={`relative text-left p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-indigo-50/70 dark:bg-indigo-950/50 border-indigo-500 dark:border-indigo-500 ring-2 ring-indigo-500/20 shadow-xs'
+                        : 'bg-zinc-50/70 dark:bg-zinc-800/50 border-zinc-200/80 dark:border-zinc-700/80 hover:border-zinc-300 dark:hover:border-zinc-600'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-xs text-zinc-900 dark:text-white">
+                          {provider.name}
+                        </span>
+                      </div>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-zinc-200/80 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300'
+                      }`}>
+                        {provider.badge}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                      {provider.desc}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 1.2 API Key / Token Input */}
+          <div className="space-y-3 pt-2 border-t border-zinc-100 dark:border-zinc-800">
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>API Token / API Key</span>
+                  <span className="text-zinc-400 font-normal">
+                    {aiProvider === 'gemini' ? '(留空将默认使用运行环境内置密钥)' : '(必填)'}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  className="text-xs text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 flex items-center gap-1 cursor-pointer"
+                >
+                  {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showApiKey ? '隐藏密钥' : '显示明文'}</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={aiApiKey}
+                  onChange={(e) => {
+                    setAiApiKey(e.target.value);
+                    setTestResult(null);
+                  }}
+                  placeholder={
+                    aiProvider === 'gemini'
+                      ? 'AIzaSy... (留空时将自动使用服务端配置的 GEMINI_API_KEY)'
+                      : aiProvider === 'deepseek'
+                      ? 'sk-...'
+                      : aiProvider === 'anthropic'
+                      ? 'sk-ant-...'
+                      : 'sk-...'
+                  }
+                  className="w-full pl-3.5 pr-10 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+            </div>
+
+            {/* 1.3 Base URL Input */}
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                API 接口基础地址 (Base URL)
+              </label>
+              <input
+                type="text"
+                value={aiBaseUrl}
+                onChange={(e) => {
+                  setAiBaseUrl(e.target.value);
+                  setTestResult(null);
+                }}
+                placeholder={DEFAULT_AI_BASE_URLS[aiProvider] || 'https://api.openai.com/v1'}
+                className="w-full px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+              />
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                支持直连官方接口、反向代理、OneAPI / NewAPI / SiliconFlow / Ollama 等兼容 OpenAI 协议的自定义中转节点。
+              </p>
+            </div>
+
+            {/* 1.4 Model Selector & Custom Model */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              {/* Select from available/fetched models */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                    <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>选择模型 (已发现 {availableModels.length} 个)</span>
+                  </label>
+                </div>
+                <select
+                  disabled={isCustomModel}
+                  value={aiModel}
+                  onChange={(e) => {
+                    setAiModel(e.target.value);
+                    setTestResult(null);
+                  }}
+                  className="w-full px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none disabled:opacity-40"
+                >
+                  {availableModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Custom Model Toggle & Input */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 flex items-center gap-1">
+                    <span>手动指定自定义模型名称</span>
+                  </label>
+                  <label className="inline-flex items-center gap-1 text-[11px] text-zinc-500 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isCustomModel}
+                      onChange={(e) => {
+                        setIsCustomModel(e.target.checked);
+                        setTestResult(null);
+                      }}
+                      className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span>启用自定义</span>
+                  </label>
+                </div>
+                <input
+                  type="text"
+                  disabled={!isCustomModel}
+                  value={aiCustomModelName}
+                  onChange={(e) => {
+                    setAiCustomModelName(e.target.value);
+                    setTestResult(null);
+                  }}
+                  placeholder="例如 deepseek-ai/DeepSeek-V3, qwen-max, o1-preview"
+                  className="w-full px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none disabled:opacity-40"
+                />
+              </div>
+            </div>
+
+            {/* 1.5 Test Connection & Diagnostic Box */}
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestAiConnection}
+                  disabled={isTestingAi}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {isTestingAi ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Wand2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>{isTestingAi ? '正在连接测试...' : '🧪 测试当前模型连通性'}</span>
+                </button>
+              </div>
+
+              {testResult && (
+                <div
+                  className={`flex-1 w-full sm:w-auto p-3 rounded-xl text-xs flex items-start gap-2 animate-in fade-in ${
+                    testResult.success
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200/80 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800 text-rose-800 dark:text-rose-200'
+                  }`}
+                >
+                  {testResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold">{testResult.message}</p>
+                    {testResult.sampleResponse && (
+                      <p className="mt-1 text-[11px] font-mono opacity-90 break-words bg-black/5 dark:bg-white/5 p-1.5 rounded-lg">
+                        响应内容：{testResult.sampleResponse}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ========================================================= */}
+        {/* 2. 基础信息配置 */}
+        {/* ========================================================= */}
         <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
           <h4 className="text-sm font-bold text-zinc-900 dark:text-white pb-2 border-b border-zinc-100 dark:border-zinc-800">
             基础信息配置
@@ -156,20 +595,7 @@ export const SettingsManager: React.FC = () => {
 
           <div>
             <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              公告提示 (可选，将在首页顶部显示)
-            </label>
-            <input
-              type="text"
-              value={formData.announcement}
-              onChange={(e) => setFormData({ ...formData, announcement: e.target.value })}
-              placeholder="例如：欢迎访问 OmniMark 导航，点击右上角管理后台可自行添加自定义书签"
-              className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              页脚说明文字
+              页脚说明文本
             </label>
             <input
               type="text"
@@ -178,36 +604,44 @@ export const SettingsManager: React.FC = () => {
               className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
             />
           </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+              顶部全站公告条 (留空则不显示)
+            </label>
+            <textarea
+              rows={2}
+              value={formData.announcement}
+              onChange={(e) => setFormData({ ...formData, announcement: e.target.value })}
+              placeholder="输入需要向访客广播的公告或使用提示..."
+              className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none resize-none"
+            />
+          </div>
         </div>
 
-        {/* 首页书签展示数量配置 (新功能) */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-5">
+        {/* ========================================================= */}
+        {/* 3. 首页书签展示数量上限限制 */}
+        {/* ========================================================= */}
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center gap-2">
               <LayoutGrid className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
               <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-                首页书签显示数量设置
+                首页书签展示数量与限制
               </h4>
             </div>
-            <span className="text-xs text-zinc-400">控制首页内容密度与分页</span>
+            <span className="text-xs text-zinc-400">目前全站共有 {bookmarks.length} 个书签</span>
           </div>
 
-          {/* 1. 分组模式：每分类最多显示数量 */}
-          <div className="space-y-2.5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <div>
-                <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                  全部分类分组展示时：每分类默认最多显示书签数
-                </label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  设为 0 表示不限制（展示该分类下全部书签）；设为具体数值时，超出部分提供「展开查看更多」按钮
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                每个分类默认最多展示书签数
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  min={0}
-                  max={999}
+                  min="0"
                   value={formData.maxBookmarksPerCategory}
                   onChange={(e) =>
                     setFormData({
@@ -215,56 +649,22 @@ export const SettingsManager: React.FC = () => {
                       maxBookmarksPerCategory: Math.max(0, parseInt(e.target.value) || 0),
                     })
                   }
-                  className="w-20 px-3 py-1.5 text-center text-sm font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                  className="w-full px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
                 />
-                <span className="text-xs text-zinc-500">个</span>
               </div>
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                设置为 <code className="font-mono text-indigo-600">0</code> 表示不限制（展示该分类下全部书签）。
+              </p>
             </div>
 
-            {/* Quick Presets */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[11px] text-zinc-400 mr-1">快捷预设:</span>
-              {[
-                { label: '不限 (全部)', value: 0 },
-                { label: '8 个 (精简)', value: 8 },
-                { label: '12 个 (推荐)', value: 12 },
-                { label: '16 个', value: 16 },
-                { label: '24 个', value: 24 },
-              ].map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  onClick={() =>
-                    setFormData({ ...formData, maxBookmarksPerCategory: preset.value })
-                  }
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    formData.maxBookmarksPerCategory === preset.value
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800/80 space-y-2.5">
-            {/* 2. 单分类/搜索列表模式：最大显示数量 */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <div>
-                <label className="text-xs font-semibold text-zinc-800 dark:text-zinc-200">
-                  点击进入单分类 / 搜索结果时：默认最多显示书签数
-                </label>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-                  在切换到特定单分类标签或按关键词搜索时生效，0 表示展示全部
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0 mt-1 sm:mt-0">
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                首页总展示书签数上限
+              </label>
+              <div className="flex items-center gap-2">
                 <input
                   type="number"
-                  min={0}
-                  max={999}
+                  min="0"
                   value={formData.maxTotalBookmarks}
                   onChange={(e) =>
                     setFormData({
@@ -272,41 +672,19 @@ export const SettingsManager: React.FC = () => {
                       maxTotalBookmarks: Math.max(0, parseInt(e.target.value) || 0),
                     })
                   }
-                  className="w-20 px-3 py-1.5 text-center text-sm font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                  className="w-full px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
                 />
-                <span className="text-xs text-zinc-500">个</span>
               </div>
-            </div>
-
-            {/* Quick Presets */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              <span className="text-[11px] text-zinc-400 mr-1">快捷预设:</span>
-              {[
-                { label: '不限 (全部)', value: 0 },
-                { label: '24 个', value: 24 },
-                { label: '48 个', value: 48 },
-                { label: '96 个', value: 96 },
-              ].map((preset) => (
-                <button
-                  key={preset.value}
-                  type="button"
-                  onClick={() =>
-                    setFormData({ ...formData, maxTotalBookmarks: preset.value })
-                  }
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    formData.maxTotalBookmarks === preset.value
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+              <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+                设置为 <code className="font-mono text-indigo-600">0</code> 表示不限制（展示全部书签）。
+              </p>
             </div>
           </div>
         </div>
 
-        {/* 站点快讯 Feed 设置 */}
+        {/* ========================================================= */}
+        {/* 4. 站点快讯 Feed 设置 */}
+        {/* ========================================================= */}
         <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
             <div className="flex items-center gap-2">
@@ -372,49 +750,9 @@ export const SettingsManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Backend API Endpoint Config */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
-          <div className="flex items-center justify-between pb-2 border-b border-zinc-100 dark:border-zinc-800">
-            <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-                后端 API 节点配置
-              </h4>
-            </div>
-            <span className="text-xs text-zinc-400">分离部署时使用</span>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-              API Base URL
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-                placeholder="默认为 /api ，若为独立 API 服务请填入完整 URL"
-                className="flex-1 px-3.5 py-2 text-sm font-mono rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  apiClient.setBaseUrl(apiUrl);
-                  loadInitialData();
-                  showToast('API 节点地址已更新并尝试重新拉取数据', 'success');
-                }}
-                className="px-4 py-2 text-xs font-medium rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 transition-colors cursor-pointer"
-              >
-                应用并测试
-              </button>
-            </div>
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
-              单体运行时保持默认 <code className="px-1 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 font-mono">/api</code> 即可；若将前后端分离部署，可在此填入后端服务的公网 URL。
-            </p>
-          </div>
-        </div>
-
-        {/* Feature Toggles */}
+        {/* ========================================================= */}
+        {/* 5. 前台功能开关 */}
+        {/* ========================================================= */}
         <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
           <h4 className="text-sm font-bold text-zinc-900 dark:text-white pb-2 border-b border-zinc-100 dark:border-zinc-800">
             前台功能开关
@@ -457,7 +795,9 @@ export const SettingsManager: React.FC = () => {
           </div>
         </div>
 
-        {/* Search Engine Config */}
+        {/* ========================================================= */}
+        {/* 6. 搜索栏引擎列表 */}
+        {/* ========================================================= */}
         <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
           <h4 className="text-sm font-bold text-zinc-900 dark:text-white pb-2 border-b border-zinc-100 dark:border-zinc-800">
             搜索栏引擎列表
@@ -530,14 +870,14 @@ export const SettingsManager: React.FC = () => {
         </div>
 
         {/* Save button */}
-        <div className="flex justify-end">
+        <div className="flex justify-end sticky bottom-4 z-20">
           <button
             type="submit"
             disabled={isSaving}
-            className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-md shadow-indigo-600/20 disabled:opacity-60 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-8 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/40 hover:-translate-y-0.5 disabled:opacity-60 transition-all cursor-pointer"
           >
-            <Save className="w-4 h-4" />
-            <span>{isSaving ? '正在保存...' : '保存所有设置'}</span>
+            <Save className="w-4.5 h-4.5" />
+            <span>{isSaving ? '正在保存全部设置...' : '保存所有全局与 AI 设置'}</span>
           </button>
         </div>
       </form>

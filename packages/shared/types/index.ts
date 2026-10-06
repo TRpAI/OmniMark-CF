@@ -65,6 +65,15 @@ export interface SearchEngine {
   icon: string;
 }
 
+export type AiProviderType = 'gemini' | 'openai' | 'deepseek' | 'anthropic' | 'custom';
+
+export interface AiModelOption {
+  id: string;
+  name: string;
+  provider?: string;
+  description?: string;
+}
+
 export interface SiteSettings {
   title: string;
   subtitle: string;
@@ -81,6 +90,14 @@ export interface SiteSettings {
   maxTotalBookmarks?: number;       // 首页单分类/总列表默认最多展示书签数，0 为不限制
   searchEngines: SearchEngine[];
   defaultSearchEngineId: string;
+
+  // AI 智能助手与多厂商模型配置
+  aiProvider?: AiProviderType;          // 'gemini' | 'openai' | 'deepseek' | 'anthropic' | 'custom'
+  aiApiKey?: string;                    // API Key / Token
+  aiBaseUrl?: string;                   // 自定义 Base URL (例如 https://api.openai.com/v1, https://api.deepseek.com/v1, 自建 OneAPI/NewAPI/Ollama)
+  aiModel?: string;                     // 当前选中的模型名称 (例如 gemini-2.5-flash, gpt-4o-mini, deepseek-chat, claude-3-5-haiku 等)
+  aiCustomModelName?: string;           // 自定义模型名称
+  aiCustomModels?: string[];            // 从上游获取到的或用户自定义保存的模型列表
 }
 
 export interface ApiResponse<T = any> {

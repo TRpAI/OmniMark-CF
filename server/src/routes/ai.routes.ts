@@ -20,4 +20,10 @@ router.post('/site-summary', aiLimiter, (req, res) => aiController.generateSiteS
 // 智能问答与寻宝
 router.post('/assistant', aiLimiter, (req, res) => aiController.askAssistant(req, res));
 
+// 自动从上游获取模型列表
+router.post('/fetch-models', (req, res) => aiController.fetchModels(req, res));
+
+// 测试模型连通性
+router.post('/test-connection', (req, res) => aiController.testConnection(req, res));
+
 export default router;

@@ -1,4 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
+import { settingsRepository } from '../repositories/settings.repository';
+import { DEFAULT_AI_PROVIDER_MODELS, DEFAULT_AI_BASE_URLS } from '../../../packages/shared/constants';
 
 interface SiteInfoResult {
   title: string;
@@ -18,12 +20,6 @@ interface SiteSummaryResult {
 }
 
 export class AiService {
-  private getClient(): GoogleGenAI | null {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) return null;
-    return new GoogleGenAI({ apiKey });
-  }
-
   /**
    * 抓取网页基础元信息（兜底或为 AI 提供参考上下文）
    */
@@ -78,6 +74,203 @@ export class AiService {
   }
 
   /**
+   * 从上游厂商自动动态获取可用模型列表
+   */
+  async fetchUpstreamModels(providerParam?: string, apiKeyParam?: string, baseUrlParam?: string): Promise<string[]> {
+    const settings = await settingsRepository.getSettings();
+    const provider = providerParam || settings.aiProvider || 'gemini';
+    const apiKey = apiKeyParam !== undefined ? apiKeyParam.trim() : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
+    const baseUrl = baseUrlParam !== undefined ? baseUrlParam.trim() : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
+
+    if (provider === 'gemini') {
+      const effectiveKey = apiKey || process.env.GEMINI_API_KEY || '';
+      if (!effectiveKey) {
+        return DEFAULT_AI_PROVIDER_MODELS.gemini;
+      }
+      const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+      const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
+      try {
+        const res = await fetch(endpoint, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+        if (!res.ok) {
+          const errText = await res.text().catch(() => '');
+          throw new Error(`Google API 返回异常 (${res.status}): ${errText.slice(0, 120)}`);
+        }
+        const data = await res.json() as any;
+        if (data && Array.isArray(data.models)) {
+          const modelList = data.models
+            .filter((m: any) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+            .map((m: any) => m.name.replace(/^models\//, ''))
+            .filter((name: string) => !name.includes('embedding') && !name.includes('aqa'));
+          if (modelList.length > 0) return modelList;
+        }
+      } catch (err: any) {
+        console.warn('Failed to fetch Gemini models from upstream, fallback to presets:', err.message);
+        throw err;
+      }
+      return DEFAULT_AI_PROVIDER_MODELS.gemini;
+    }
+
+    // OpenAI, DeepSeek, Anthropic (via gateway), SiliconFlow, Moonshot, Ollama or custom OpenAI-compatible API
+    const effectiveBaseUrl = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).replace(/\/+$/, '');
+    const endpoint = `${effectiveBaseUrl}/models`;
+
+    try {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (apiKey) {
+        headers['Authorization'] = `Bearer ${apiKey}`;
+      }
+
+      const res = await fetch(endpoint, { method: 'GET', headers });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`上游接口返回异常 (${res.status}): ${errText.slice(0, 120)}`);
+      }
+      const data = await res.json() as any;
+      if (data && Array.isArray(data.data)) {
+        const models = data.data.map((m: any) => m.id || m.name).filter(Boolean);
+        if (models.length > 0) {
+          return models.sort((a: string, b: string) => a.localeCompare(b));
+        }
+      }
+    } catch (err: any) {
+      console.warn('Failed to fetch OpenAI-compatible models from upstream:', err.message);
+      throw err;
+    }
+
+    return DEFAULT_AI_PROVIDER_MODELS[provider] || DEFAULT_AI_PROVIDER_MODELS.openai;
+  }
+
+  /**
+   * 测试 AI 模型连通性
+   */
+  async testConnection(
+    providerParam?: string,
+    apiKeyParam?: string,
+    baseUrlParam?: string,
+    modelParam?: string
+  ): Promise<{ success: boolean; model: string; message: string; sampleResponse?: string }> {
+    const settings = await settingsRepository.getSettings();
+    const provider = providerParam || settings.aiProvider || 'gemini';
+    const apiKey = apiKeyParam !== undefined ? apiKeyParam.trim() : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
+    const baseUrl = baseUrlParam !== undefined ? baseUrlParam.trim() : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
+    const model = modelParam?.trim() || settings.aiModel?.trim() || 'gemini-2.5-flash';
+
+    const testPrompt = '请简短回复一句中文：“连接成功，我是 [当前模型名称]，随时为您提供全站智能服务！”';
+
+    const resultText = await this.executeModelPrompt(testPrompt, {
+      provider,
+      apiKey,
+      baseUrl,
+      model,
+      systemPrompt: '你是一个专业的测试机器人，请准确精练地响应测试。',
+    });
+
+    return {
+      success: true,
+      model,
+      message: '测试成功！模型连接与授权一切正常。',
+      sampleResponse: resultText,
+    };
+  }
+
+  /**
+   * 核心多厂商模型调用执行器
+   */
+  private async executeModelPrompt(
+    userPrompt: string,
+    override?: {
+      provider?: string;
+      apiKey?: string;
+      baseUrl?: string;
+      model?: string;
+      systemPrompt?: string;
+    }
+  ): Promise<string> {
+    const settings = await settingsRepository.getSettings();
+    const provider = override?.provider || settings.aiProvider || 'gemini';
+    const apiKey = override?.apiKey !== undefined ? override.apiKey : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
+    const baseUrl = override?.baseUrl !== undefined ? override.baseUrl : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
+    const model = override?.model || settings.aiCustomModelName || settings.aiModel || 'gemini-2.5-flash';
+    const systemPrompt = override?.systemPrompt || '你是一个专业的网站分析与书签导航专家，请给出客观、精准的高质量回答。';
+
+    // 1. Google Gemini 官方 SDK 或 REST 协议
+    if (provider === 'gemini') {
+      const effectiveKey = apiKey || process.env.GEMINI_API_KEY || '';
+      if (!effectiveKey) {
+        throw new Error('未配置 Gemini API Key，请在后台设置中填写或配置环境变量');
+      }
+
+      // 如果未指定特殊 BaseURL，优先使用 GoogleGenAI SDK
+      if (!baseUrl || baseUrl === DEFAULT_AI_BASE_URLS.gemini) {
+        const ai = new GoogleGenAI({ apiKey: effectiveKey });
+        const res = await ai.models.generateContent({
+          model: model || 'gemini-2.5-flash',
+          contents: userPrompt,
+          config: {
+            systemInstruction: systemPrompt,
+          },
+        });
+        return res.text?.trim() || '';
+      }
+
+      // 走自定义 Base URL REST 代理
+      const host = baseUrl.replace(/\/+$/, '');
+      const endpoint = `${host}/v1beta/models/${model || 'gemini-2.5-flash'}:generateContent?key=${effectiveKey}`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: userPrompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        throw new Error(`Gemini API 错误 (${res.status}): ${errText.slice(0, 150)}`);
+      }
+      const data = await res.json() as any;
+      return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    }
+
+    // 2. OpenAI / DeepSeek / Moonshot / SiliconFlow / Ollama / OneAPI / Custom OpenAI-compatible
+    const effectiveBaseUrl = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).replace(/\/+$/, '');
+    const endpoint = `${effectiveBaseUrl}/chat/completions`;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+    }
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ];
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: model || (provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini'),
+        messages,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`AI 服务提供商错误 (${res.status}): ${errText.slice(0, 150)}`);
+    }
+
+    const data = await res.json() as any;
+    const reply = data?.choices?.[0]?.message?.content || '';
+    return reply.trim();
+  }
+
+  /**
    * 智能提取与整理站点信息（用于添加/编辑书签时一键自动填写）
    */
   async analyzeSiteInfo(targetUrl: string, existingCategories: string[] = []): Promise<SiteInfoResult> {
@@ -97,25 +290,6 @@ export class AiService {
       parsedHostname = new URL(normalizedUrl).hostname;
     } catch {}
 
-    const ai = this.getClient();
-    if (!ai) {
-      // 若未配置 GEMINI_API_KEY，优雅回退到元数据提取，不中断用户体验
-      const defaultTitle = rawMeta.title || parsedHostname || '新站点';
-      const defaultDesc = rawMeta.description || `${parsedHostname} 站点导航与资源链接。`;
-      const defaultTags = rawMeta.keywords
-        ? rawMeta.keywords.split(/[,，]/).map(t => t.trim()).filter(Boolean).slice(0, 4)
-        : ['网络资源', '常用站点'];
-
-      return {
-        title: defaultTitle,
-        description: defaultDesc,
-        tags: defaultTags,
-        suggestedCategory: existingCategories[0] || '常用工具',
-        favicon: rawMeta.favicon || `https://www.google.com/s2/favicons?domain=${parsedHostname}&sz=128`,
-      };
-    }
-
-    // 2. 调用 Gemini 3.8 Flash 提取并生成专业结构化信息
     const prompt = `你是一个专业的互联网网站分析与信息架构专家。请针对以下网址，提炼并生成最适合收录进导航书签系统的中文信息：
 
 目标网址: ${normalizedUrl}
@@ -135,12 +309,10 @@ export class AiService {
 }`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
+      const responseText = await this.executeModelPrompt(prompt, {
+        systemPrompt: '你是一个专业的信息提取与分类引擎，请直接输出 JSON 数据，不要包含 markdown 标记。',
       });
 
-      const responseText = response.text?.trim() || '';
       const cleanJson = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
       const parsed = JSON.parse(cleanJson);
 
@@ -152,7 +324,7 @@ export class AiService {
         favicon: parsed.favicon || rawMeta.favicon || `https://www.google.com/s2/favicons?domain=${parsedHostname}&sz=128`,
       };
     } catch (err: any) {
-      console.warn('Gemini analyzeSiteInfo fallback to raw metadata:', err?.message);
+      console.warn('AI analyzeSiteInfo fallback to raw metadata:', err?.message);
       return {
         title: rawMeta.title || parsedHostname || '未命名站点',
         description: rawMeta.description || `${parsedHostname} 站点资源导航。`,
@@ -174,23 +346,6 @@ export class AiService {
     let normalizedUrl = targetUrl.trim();
     if (!/^https?:\/\//i.test(normalizedUrl)) {
       normalizedUrl = 'https://' + normalizedUrl;
-    }
-
-    const ai = this.getClient();
-    if (!ai) {
-      // 离线/无 API Key 默认结构
-      return {
-        oneSentenceSummary: title ? `${title} 是一个实用的数字网络资源服务。` : '现代化网络站点与在线工具。',
-        coreFeatures: [
-          description || '提供在线核心功能与服务访问',
-          '支持浏览器直达与跨设备协同',
-          '界面现代简洁，交互直观',
-        ],
-        targetAudience: ['互联网用户与数字创作者', '效率与工具爱好者'],
-        keyHighlights: ['免安装在线秒开', '稳定可靠的服务能力'],
-        recommendedUsage: '点击卡片即可直达该服务，建议加入常用分类或置顶以便快速访问。',
-        relatedKeywords: ['在线工具', '资源导航'],
-      };
     }
 
     const prompt = `你是一个资深的数字产品评测专家与知识架构师。请针对以下网站进行深入、精准、客观的智能摘要与功能解读：
@@ -221,12 +376,10 @@ export class AiService {
 }`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
+      const responseText = await this.executeModelPrompt(prompt, {
+        systemPrompt: '你是一个资深的数字产品分析专家，请只输出纯 JSON 数据。',
       });
 
-      const responseText = response.text?.trim() || '';
       const cleanJson = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
       const parsed = JSON.parse(cleanJson);
 
@@ -239,7 +392,7 @@ export class AiService {
         relatedKeywords: Array.isArray(parsed.relatedKeywords) ? parsed.relatedKeywords : ['工具', '导航'],
       };
     } catch (err: any) {
-      console.warn('Gemini generateSiteSummary failed:', err?.message);
+      console.warn('AI generateSiteSummary failed:', err?.message);
       return {
         oneSentenceSummary: `${title || '该站点'} 提供了便捷的在线服务与工具支持。`,
         coreFeatures: [description || '核心功能服务', '支持多端快捷浏览与直达'],
@@ -257,27 +410,6 @@ export class AiService {
   async askAssistant(query: string, bookmarksContext: Array<{ title: string; url: string; description?: string; tags?: string[]; categoryName?: string }>): Promise<{ answer: string; recommendedBookmarks: Array<{ title: string; url: string }> }> {
     if (!query || !query.trim()) {
       throw new Error('请输入您的问题或需求');
-    }
-
-    const ai = this.getClient();
-    if (!ai) {
-      // 简单关键词匹配回退
-      const keywords = query.toLowerCase().split(/\s+/);
-      const matched = bookmarksContext.filter(b => {
-        const text = `${b.title} ${b.description || ''} ${(b.tags || []).join(' ')} ${b.categoryName || ''}`.toLowerCase();
-        return keywords.some(k => text.includes(k));
-      }).slice(0, 5);
-
-      if (matched.length > 0) {
-        return {
-          answer: `为您在现有书签库中找到以下相关站点：\n\n` + matched.map(m => `* **[${m.title}](${m.url})** - ${m.description || '点击直达'}`).join('\n'),
-          recommendedBookmarks: matched.map(m => ({ title: m.title, url: m.url })),
-        };
-      }
-      return {
-        answer: '未在当前书签库中匹配到完全相关的站点，建议尝试输入更具体的工具或分类关键词。',
-        recommendedBookmarks: [],
-      };
     }
 
     // 限制书签上下文长度，防止超出 Prompt 边界
@@ -311,12 +443,10 @@ ${JSON.stringify(compactBookmarks, null, 2)}
 }`;
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
+      const responseText = await this.executeModelPrompt(prompt, {
+        systemPrompt: '你是一个智能书签知识助手，请严格输出 JSON 格式数据。',
       });
 
-      const responseText = response.text?.trim() || '';
       const cleanJson = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
       const parsed = JSON.parse(cleanJson);
 
@@ -325,7 +455,21 @@ ${JSON.stringify(compactBookmarks, null, 2)}
         recommendedBookmarks: Array.isArray(parsed.recommendedBookmarks) ? parsed.recommendedBookmarks : [],
       };
     } catch (err: any) {
-      console.warn('Gemini askAssistant failed:', err?.message);
+      console.warn('AI askAssistant failed:', err?.message);
+      // 简单关键词匹配回退
+      const keywords = query.toLowerCase().split(/\s+/);
+      const matched = bookmarksContext.filter(b => {
+        const text = `${b.title} ${b.description || ''} ${(b.tags || []).join(' ')} ${b.categoryName || ''}`.toLowerCase();
+        return keywords.some(k => text.includes(k));
+      }).slice(0, 5);
+
+      if (matched.length > 0) {
+        return {
+          answer: `为您在现有书签库中找到以下相关站点：\n\n` + matched.map(m => `* **[${m.title}](${m.url})** - ${m.description || '点击直达'}`).join('\n'),
+          recommendedBookmarks: matched.map(m => ({ title: m.title, url: m.url })),
+        };
+      }
+
       return {
         answer: `抱歉，分析您的需求时出现临时波动：${err?.message || '请稍后再试'}。`,
         recommendedBookmarks: [],

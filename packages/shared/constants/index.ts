@@ -38,6 +38,22 @@ export const DEFAULT_SEARCH_ENGINES = [
   },
 ];
 
+export const DEFAULT_AI_PROVIDER_MODELS: Record<string, string[]> = {
+  gemini: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini', 'gpt-4.5-preview', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  anthropic: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
+  custom: ['deepseek-chat', 'gpt-4o-mini', 'qwen2.5-72b-instruct', 'claude-3-5-sonnet-20241022'],
+};
+
+export const DEFAULT_AI_BASE_URLS: Record<string, string> = {
+  gemini: 'https://generativelanguage.googleapis.com',
+  openai: 'https://api.openai.com/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  anthropic: 'https://api.anthropic.com/v1',
+  custom: 'https://api.openai.com/v1',
+};
+
 export const DEFAULT_SETTINGS: SiteSettings = {
   title: 'OmniMark 导航',
   subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
@@ -54,6 +70,14 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   maxTotalBookmarks: 0,       // 0 为不限制（展示全部）
   searchEngines: DEFAULT_SEARCH_ENGINES,
   defaultSearchEngineId: 'google',
+
+  // AI 智能设置
+  aiProvider: 'gemini',
+  aiApiKey: '',
+  aiBaseUrl: 'https://generativelanguage.googleapis.com',
+  aiModel: 'gemini-2.5-flash',
+  aiCustomModelName: '',
+  aiCustomModels: [],
 };
 
 export const INITIAL_CATEGORIES: Category[] = [

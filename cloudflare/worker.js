@@ -2096,31 +2096,145 @@ export default {
       }
 
       // -------------------------------------------------------------
-      // 9. AI 智能助手接口 (/ai/*)
+      // 9. AI 智能助手接口 (/ai/*) - 多厂商与自定义模型支持
       // -------------------------------------------------------------
-      const callGeminiRest = async (promptText) => {
-        const apiKey = env.GEMINI_API_KEY || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY);
-        if (!apiKey) return null;
-        try {
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
-            {
+      const executeAiCompletion = async (promptText, systemInstruction = '', override = null) => {
+        let aiProvider = override?.provider || 'gemini';
+        let aiApiKey = override?.apiKey || env.GEMINI_API_KEY || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
+        let aiBaseUrl = override?.baseUrl || '';
+        let aiModel = override?.model || 'gemini-2.5-flash';
+
+        if (!override && env.DB) {
+          try {
+            const row = await env.DB.prepare('SELECT value FROM settings WHERE key = ?').bind('siteSettings').first();
+            if (row && row.value) {
+              const parsed = JSON.parse(row.value);
+              if (parsed.aiProvider) aiProvider = parsed.aiProvider;
+              if (parsed.aiApiKey) aiApiKey = parsed.aiApiKey;
+              if (parsed.aiBaseUrl) aiBaseUrl = parsed.aiBaseUrl;
+              if (parsed.aiCustomModelName) aiModel = parsed.aiCustomModelName;
+              else if (parsed.aiModel) aiModel = parsed.aiModel;
+            }
+          } catch {}
+        }
+
+        if (aiProvider === 'gemini') {
+          if (!aiApiKey) return null;
+          const host = (aiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+          const endpoint = `${host}/v1beta/models/${aiModel || 'gemini-2.5-flash'}:generateContent?key=${aiApiKey}`;
+          try {
+            const geminiRes = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: promptText }] }],
+                systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined,
               }),
-            }
-          );
-          if (!geminiRes.ok) return null;
-          const geminiData = await geminiRes.json();
-          return geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+            });
+            if (!geminiRes.ok) return null;
+            const geminiData = await geminiRes.json();
+            return geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          } catch {
+            return null;
+          }
+        }
+
+        // OpenAI / DeepSeek / Anthropic / Custom OpenAI-compatible
+        const defaultBase = aiProvider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
+        const effectiveBase = (aiBaseUrl || defaultBase).replace(/\/+$/, '');
+        const endpoint = `${effectiveBase}/chat/completions`;
+
+        const headers = { 'Content-Type': 'application/json' };
+        if (aiApiKey) headers['Authorization'] = `Bearer ${aiApiKey}`;
+
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              model: aiModel || (aiProvider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini'),
+              messages: [
+                ...(systemInstruction ? [{ role: 'system', content: systemInstruction }] : []),
+                { role: 'user', content: promptText },
+              ],
+              temperature: 0.3,
+            }),
+          });
+          if (!res.ok) return null;
+          const data = await res.json();
+          return data?.choices?.[0]?.message?.content || null;
         } catch {
           return null;
         }
       };
 
-      // 9.1 智能提取站点简介与信息
+      // 9.1 从上游动态拉取模型列表
+      if (path === '/ai/fetch-models' && method === 'POST') {
+        const { provider = 'gemini', apiKey = '', baseUrl = '' } = await request.json().catch(() => ({}));
+        let effectiveKey = apiKey || env.GEMINI_API_KEY || '';
+
+        if (provider === 'gemini') {
+          if (!effectiveKey) {
+            return success(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+          }
+          const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+          const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
+          try {
+            const res = await fetch(endpoint, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data.models)) {
+                const list = data.models
+                  .filter((m) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
+                  .map((m) => m.name.replace(/^models\//, ''))
+                  .filter((name) => !name.includes('embedding') && !name.includes('aqa'));
+                if (list.length > 0) return success(list);
+              }
+            }
+          } catch {}
+          return success(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+        }
+
+        const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
+        const effectiveBase = (baseUrl || defaultBase).replace(/\/+$/, '');
+        const endpoint = `${effectiveBase}/models`;
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+          const res = await fetch(endpoint, { method: 'GET', headers });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data.data)) {
+              const models = data.data.map((m) => m.id || m.name).filter(Boolean);
+              if (models.length > 0) return success(models.sort());
+            }
+          }
+        } catch {}
+        return success(provider === 'deepseek' ? ['deepseek-chat', 'deepseek-reasoner'] : ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini']);
+      }
+
+      // 9.2 测试连通性
+      if (path === '/ai/test-connection' && method === 'POST') {
+        const { provider, apiKey, baseUrl, model } = await request.json().catch(() => ({}));
+        const testPrompt = '请简短回复一句中文：“连接成功，我是 [当前模型名称]，随时为您提供全站智能服务！”';
+        const text = await executeAiCompletion(testPrompt, '你是一个测试机器人，请准确精练地响应测试。', {
+          provider,
+          apiKey,
+          baseUrl,
+          model,
+        });
+        if (text) {
+          return success({
+            success: true,
+            model: model || '默认模型',
+            message: '测试成功！模型连接与授权一切正常。',
+            sampleResponse: text,
+          });
+        }
+        return error('模型连接测试失败，请检查 API Token 与接口地址。', 400);
+      }
+
+      // 9.3 智能提取站点简介与信息
       if (path === '/ai/site-info' && method === 'POST') {
         const { url: targetUrl, existingCategories = [] } = await request.json().catch(() => ({}));
         if (!targetUrl) return error('请提供目标网址', 400);
@@ -2165,7 +2279,7 @@ export default {
   "favicon": "${rawFavicon}"
 }`;
 
-        const aiText = await callGeminiRest(prompt);
+        const aiText = await executeAiCompletion(prompt, '你是一个专业的信息提取与分类引擎，请直接输出 JSON 数据。');
         if (aiText) {
           try {
             const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
@@ -2189,7 +2303,7 @@ export default {
         });
       }
 
-      // 9.2 站点深度智能摘要
+      // 9.4 站点深度智能摘要
       if (path === '/ai/site-summary' && method === 'POST') {
         const { url: targetUrl, title = '', description = '' } = await request.json().catch(() => ({}));
         if (!targetUrl) return error('请提供目标网址', 400);
@@ -2209,7 +2323,7 @@ export default {
   "relatedKeywords": ["标签1", "标签2", "标签3", "标签4"]
 }`;
 
-        const aiText = await callGeminiRest(prompt);
+        const aiText = await executeAiCompletion(prompt, '你是一个资深的数字产品分析专家，请只输出纯 JSON 数据。');
         if (aiText) {
           try {
             const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
@@ -2228,7 +2342,7 @@ export default {
         });
       }
 
-      // 9.3 全站书签智能寻宝 / 语义问答
+      // 9.5 全站书签智能寻宝 / 语义问答
       if (path === '/ai/assistant' && method === 'POST') {
         const { query } = await request.json().catch(() => ({}));
         if (!query) return error('请输入您的问题', 400);
@@ -2264,7 +2378,7 @@ ${JSON.stringify(contextList, null, 2)}
   "recommendedBookmarks": [{ "title": "站点名称", "url": "网址" }]
 }`;
 
-        const aiText = await callGeminiRest(prompt);
+        const aiText = await executeAiCompletion(prompt, '你是一个智能书签知识助手，请严格输出 JSON 格式数据。');
         if (aiText) {
           try {
             const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
