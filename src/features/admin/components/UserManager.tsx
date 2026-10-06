@@ -159,7 +159,7 @@ export const UserManager: React.FC = () => {
                 <div>
                   <div className="font-semibold text-zinc-800 dark:text-zinc-200">OWASP 标准加密算法</div>
                   <div className="text-zinc-500 dark:text-zinc-400 mt-0.5 font-mono text-[11px]">
-                    PBKDF2-HMAC-SHA512 (210,000 次强迭代)
+                    PBKDF2-HMAC-SHA512 (100,000 次强迭代)
                   </div>
                 </div>
               </div>

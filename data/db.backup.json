@@ -3,28 +3,28 @@
     {
       "id": "usr-admin-default",
       "username": "admin",
-      "passwordHash": "07942065c217f76e7399a4b650012550:2acaa0388f48388bb5ef7fe979b5792585cfa57db617fe0e3a8522f7b4284e6d43623d95dd2ff9cda2cceab6f0a9499a9b579362dd6984967fbb9bc205fc2417",
-      "createdAt": "2026-10-06T07:12:02.184Z"
+      "passwordHash": "ba79fcaf4010113952129cb560d3635f:0aafa3093fdd69d5d144b379b83507fe693f4afbffa0daee95a1a58aecfb1a68775334f3f9459551e8d47da02d1cfb5a9b6a48e8898b9b595b4f2911946d38e2",
+      "createdAt": "2026-10-06T12:41:18.063Z"
     }
   ],
   "sessions": [
     {
-      "id": "sess-09d6ce73-e3a7-447a-aee7-4f89ed5604bd",
+      "id": "sess-1a7d5427-5479-4131-a160-bdff4d5f0d1d",
       "userId": "usr-admin-default",
-      "tokenHash": "acab0d407c51bb11591d80ca03d8df1691f927a12d1a8bf32558c74633d4ab28",
+      "tokenHash": "b7c2936aa42bcb21c66364e7539a199940b1152e6b5d5c3bf3cd3fff14e13b84",
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
       "userAgentHash": "4b2c7fc2a2eeadc588d00c3c8b47cba35cdcaf8445e6ba555ea290331c440907",
-      "expiresAt": "2026-11-05T07:12:02.185Z",
-      "createdAt": "2026-10-06T07:12:02.185Z"
+      "expiresAt": "2026-11-05T12:41:18.065Z",
+      "createdAt": "2026-10-06T12:41:18.065Z"
     },
     {
-      "id": "sess-b62394ab-44b1-4c6d-b46c-191168d8bb0e",
+      "id": "sess-86bbe6de-b120-488d-82b2-cc573406872d",
       "userId": "usr-admin-default",
-      "tokenHash": "262115c5b2bb2e7f80249c558154d4e25a11a4b3cd46e737c1d2be9047fe4542",
+      "tokenHash": "3db09c9e8351ad805679f6eaefd582a3210690fc6c4f1991c9fc82d6935cf708",
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
       "userAgentHash": "4b2c7fc2a2eeadc588d00c3c8b47cba35cdcaf8445e6ba555ea290331c440907",
-      "expiresAt": "2026-11-05T07:12:23.298Z",
-      "createdAt": "2026-10-06T07:12:23.298Z"
+      "expiresAt": "2026-11-05T12:41:30.845Z",
+      "createdAt": "2026-10-06T12:41:30.845Z"
     }
   ],
   "categories": [
