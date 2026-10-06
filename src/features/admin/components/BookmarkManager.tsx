@@ -17,6 +17,9 @@ import {
   Lock,
   Rss,
   Flame,
+  ArrowUp,
+  ArrowDown,
+  Minus,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -25,7 +28,14 @@ import { uploadApi } from '../../../api/settings.api';
 import { aiApi } from '../../../api/ai.api';
 
 export const BookmarkManager: React.FC = () => {
-  const { bookmarks, categories, createBookmark, updateBookmark, deleteBookmark } = useBookmarkStore();
+  const {
+    bookmarks,
+    categories,
+    createBookmark,
+    updateBookmark,
+    deleteBookmark,
+    reorderBookmarks,
+  } = useBookmarkStore();
   const { showToast } = useUiStore();
 
   const [search, setSearch] = useState('');
@@ -218,22 +228,47 @@ export const BookmarkManager: React.FC = () => {
     }
   };
 
-  // Filtered bookmarks
-  const filtered = bookmarks.filter((b) => {
-    const matchesSearch =
-      !search ||
-      b.title.toLowerCase().includes(search.toLowerCase()) ||
-      b.url.toLowerCase().includes(search.toLowerCase()) ||
-      b.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()));
-    const matchesCat = selectedCategory === 'all' || b.categoryId === selectedCategory;
-    const matchesPrivacy =
-      privacyFilter === 'all' ||
-      (privacyFilter === 'public' && !b.isPrivate) ||
-      (privacyFilter === 'private' && b.isPrivate) ||
-      (privacyFilter === 'pinned' && b.isPinned) ||
-      (privacyFilter === 'feed' && b.inFeed);
-    return matchesSearch && matchesCat && matchesPrivacy;
-  });
+  const moveBookmark = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= filtered.length) return;
+
+    const currentBm = filtered[index];
+    const targetBm = filtered[targetIndex];
+
+    const newSortOrderCurrent = targetBm.sortOrder || targetIndex + 1;
+    const newSortOrderTarget = currentBm.sortOrder || index + 1;
+
+    const items = [
+      { id: currentBm.id, sortOrder: newSortOrderCurrent, categoryId: currentBm.categoryId },
+      { id: targetBm.id, sortOrder: newSortOrderTarget, categoryId: targetBm.categoryId },
+    ];
+
+    try {
+      await reorderBookmarks(items);
+      showToast('书签排位已更新', 'success');
+    } catch (err: any) {
+      showToast(err.message || '调整排位失败', 'error');
+    }
+  };
+
+  // Filtered and sorted bookmarks (strictly ordered by sortOrder)
+  const filtered = [...bookmarks]
+    .filter((b) => {
+      const matchesSearch =
+        !search ||
+        b.title.toLowerCase().includes(search.toLowerCase()) ||
+        b.url.toLowerCase().includes(search.toLowerCase()) ||
+        (b.tags || []).some((t) => t.toLowerCase().includes(search.toLowerCase()));
+      const matchesCat = selectedCategory === 'all' || b.categoryId === selectedCategory;
+      const matchesPrivacy =
+        privacyFilter === 'all' ||
+        (privacyFilter === 'public' && !b.isPrivate) ||
+        (privacyFilter === 'private' && b.isPrivate) ||
+        (privacyFilter === 'pinned' && b.isPinned) ||
+        (privacyFilter === 'feed' && b.inFeed);
+      return matchesSearch && matchesCat && matchesPrivacy;
+    })
+    .sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
 
   return (
     <div className="space-y-6">
@@ -297,89 +332,134 @@ export const BookmarkManager: React.FC = () => {
             未找到相关书签
           </div>
         ) : (
-          filtered.map((bm) => {
+          filtered.map((bm, index) => {
             const category = categories.find((c) => c.id === bm.categoryId);
             return (
               <div
                 key={bm.id}
-                className="p-3 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs flex items-center justify-between gap-2.5"
+                className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs space-y-2.5"
               >
-                {/* Left: Favicon & Info */}
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700">
-                    {bm.favicon ? (
-                      <img src={bm.favicon} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />
-                    ) : (
-                      <Globe className="w-4 h-4 text-indigo-500" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="text-xs font-semibold text-zinc-900 dark:text-white truncate">
-                        {bm.title}
-                      </h4>
-                      {bm.isPinned && (
-                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="常用置顶">
-                          <Pin className="w-3 h-3 fill-amber-500/20" />
-                        </span>
-                      )}
-                      {bm.inFeed && (
-                        <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60" title="已加入站点快讯">
-                          快讯
-                        </span>
-                      )}
-                      {bm.isPrivate && (
-                        <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="私密书签">
-                          <Lock className="w-3 h-3" />
-                        </span>
+                {/* Top Row: Favicon, Rank, Title, Badges */}
+                <div className="flex items-start justify-between gap-2.5">
+                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                    {/* Rank Badge */}
+                    <span className="shrink-0 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 mt-0.5" title="当前排位序号">
+                      #{bm.sortOrder || index + 1}
+                    </span>
+
+                    {/* Favicon */}
+                    <div className="w-7 h-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                      {bm.favicon ? (
+                        <img src={bm.favicon} alt="" className="w-4 h-4 object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <Globe className="w-4 h-4 text-indigo-500" />
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 mt-0.5 truncate">
-                      <span>{category?.name || '默认'}</span>
-                      <span>·</span>
-                      <span className="truncate">{bm.url.replace(/^https?:\/\//, '')}</span>
+
+                    {/* Title and Badges */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="text-xs font-bold text-zinc-900 dark:text-white break-words line-clamp-1">
+                          {bm.title}
+                        </h4>
+                        {bm.isPinned && (
+                          <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="常用置顶">
+                            <Pin className="w-3 h-3 fill-amber-500/20" />
+                          </span>
+                        )}
+                        {bm.inFeed && (
+                          <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60" title="已加入站点快讯">
+                            快讯
+                          </span>
+                        )}
+                        {bm.isPrivate && (
+                          <span className="p-0.5 rounded bg-rose-50 dark:bg-rose-950/40 text-rose-500" title="私密书签">
+                            <Lock className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate mt-0.5 font-mono">
+                        {bm.url.replace(/^https?:\/\//, '')}
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                {/* Right: Icon Buttons */}
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={(e) => handleToggleFeedQuick(bm, e)}
-                    title={bm.inFeed ? '移出快讯' : '收录进快讯'}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      bm.inFeed
-                        ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40'
-                        : 'text-zinc-300 dark:text-zinc-600 hover:text-zinc-500'
-                    }`}
-                  >
-                    <Rss className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleTogglePin(bm)}
-                    title={bm.isPinned ? '取消置顶' : '置顶'}
-                    className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                      bm.isPinned
-                        ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
-                        : 'text-zinc-300 dark:text-zinc-600 hover:text-zinc-500'
-                    }`}
-                  >
-                    <Pin className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => openEditModal(bm)}
-                    className="p-1.5 text-zinc-500 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors cursor-pointer"
-                    title="编辑"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirmBm(bm)}
-                    className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
-                    title="删除"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                {/* Bottom Row: Category & Reorder/Actions Bar */}
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80 text-xs">
+                  {/* Category Pill */}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 px-2 py-0.5 rounded-lg border border-zinc-200/50 dark:border-zinc-700/50 truncate max-w-[120px]">
+                    <Folder className="w-3 h-3 text-indigo-500 shrink-0" />
+                    <span className="truncate">{category?.name || '未分类'}</span>
+                  </span>
+
+                  {/* Actions Group */}
+                  <div className="flex items-center gap-1 shrink-0">
+                    {/* Move Up */}
+                    <button
+                      onClick={() => moveBookmark(index, 'up')}
+                      disabled={index === 0}
+                      title="上移排位"
+                      className="p-1 text-zinc-400 hover:text-indigo-600 disabled:opacity-20 disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    {/* Move Down */}
+                    <button
+                      onClick={() => moveBookmark(index, 'down')}
+                      disabled={index === filtered.length - 1}
+                      title="下移排位"
+                      className="p-1 text-zinc-400 hover:text-indigo-600 disabled:opacity-20 disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+
+                    <div className="w-[1px] h-3 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
+
+                    {/* Quick Feed */}
+                    <button
+                      onClick={(e) => handleToggleFeedQuick(bm, e)}
+                      title={bm.inFeed ? '移出快讯' : '收录进快讯'}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        bm.inFeed
+                          ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                          : 'text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                      }`}
+                    >
+                      <Rss className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Quick Pin */}
+                    <button
+                      onClick={() => handleTogglePin(bm)}
+                      title={bm.isPinned ? '取消置顶' : '置顶'}
+                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                        bm.isPinned
+                          ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
+                          : 'text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                      }`}
+                    >
+                      <Pin className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Edit */}
+                    <button
+                      onClick={() => openEditModal(bm)}
+                      className="p-1.5 text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors cursor-pointer"
+                      title="编辑书签"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    {/* Delete */}
+                    <button
+                      onClick={() => setDeleteConfirmBm(bm)}
+                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
+                      title="删除书签"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             );
@@ -393,6 +473,7 @@ export const BookmarkManager: React.FC = () => {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+                <th className="py-3 px-3 w-16 text-center">排位</th>
                 <th className="py-3 px-3 w-10 text-center">置顶</th>
                 <th className="py-3 px-3 w-12 text-center">快讯</th>
                 <th className="py-3 px-4">书签信息</th>
@@ -405,18 +486,45 @@ export const BookmarkManager: React.FC = () => {
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-zinc-400 text-sm">
+                  <td colSpan={8} className="py-12 text-center text-zinc-400 text-sm">
                     未找到相关书签
                   </td>
                 </tr>
               ) : (
-                filtered.map((bm) => {
+                filtered.map((bm, index) => {
                   const category = categories.find((c) => c.id === bm.categoryId);
                   return (
                     <tr
                       key={bm.id}
                       className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group"
                     >
+                      {/* Rank / Sort Order */}
+                      <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
+                          <span className="font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                            #{bm.sortOrder || index + 1}
+                          </span>
+                          <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => moveBookmark(index, 'up')}
+                              disabled={index === 0}
+                              title="上移排位"
+                              className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 cursor-pointer p-0.5"
+                            >
+                              <ArrowUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => moveBookmark(index, 'down')}
+                              disabled={index === filtered.length - 1}
+                              title="下移排位"
+                              className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 cursor-pointer p-0.5"
+                            >
+                              <ArrowDown className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+
                       {/* Pin Toggle */}
                       <td className="py-3.5 px-3 text-center">
                         <button
@@ -551,20 +659,20 @@ export const BookmarkManager: React.FC = () => {
 
       {/* Add/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-sm animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-zinc-950/50 backdrop-blur-sm animate-in fade-in">
           <div
-            className="relative w-full max-w-lg p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg p-4 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-2xl max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => setIsModalOpen(false)}
-              className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl"
+              className="absolute top-3.5 sm:top-4 right-3.5 sm:right-4 p-2 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-xl"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-lg font-bold text-zinc-900 dark:text-white mb-4">
-              {editingBookmark ? '编辑书签' : '添加新书签'}
+            <h3 className="text-base sm:text-lg font-bold text-zinc-900 dark:text-white mb-4 pr-8">
+              {editingBookmark ? '编辑书签卡片' : '添加新书签'}
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -573,34 +681,36 @@ export const BookmarkManager: React.FC = () => {
                 <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                   网址链接 (URL) *
                 </label>
-                <div className="flex gap-2">
+                <div className="space-y-2">
                   <input
                     type="text"
                     required
                     value={formData.url}
                     onChange={(e) => setFormData({ ...formData, url: e.target.value })}
                     placeholder="https://example.com"
-                    className="flex-1 px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
-                  <button
-                    type="button"
-                    onClick={handleAiAutoFill}
-                    disabled={isAiAnalyzing || !formData.url.trim()}
-                    className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center gap-1.5 shrink-0 transition-all cursor-pointer disabled:opacity-50"
-                    title="利用 Gemini AI 自动提取站点名称、简介、标签并推荐分类"
-                  >
-                    <Sparkles className={`w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 ${isAiAnalyzing ? 'animate-spin' : ''}`} />
-                    <span>{isAiAnalyzing ? 'AI 提取中...' : 'AI 智能填写'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleFetchFavicon}
-                    disabled={isFetchingFavicon}
-                    className="px-3 py-2 text-xs font-medium rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5 shrink-0 transition-colors"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isFetchingFavicon ? 'animate-spin' : ''}`} />
-                    <span>抓取图标</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleAiAutoFill}
+                      disabled={isAiAnalyzing || !formData.url.trim()}
+                      className="flex-1 px-3 py-2 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                      title="利用 Gemini AI 自动提取站点名称、简介、标签并推荐分类"
+                    >
+                      <Sparkles className={`w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 ${isAiAnalyzing ? 'animate-spin' : ''}`} />
+                      <span>{isAiAnalyzing ? 'AI 提取中...' : '✨ AI 智能填写'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleFetchFavicon}
+                      disabled={isFetchingFavicon || !formData.url.trim()}
+                      className="px-3.5 py-2 text-xs font-medium rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 flex items-center justify-center gap-1.5 transition-colors shrink-0 disabled:opacity-50 cursor-pointer"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isFetchingFavicon ? 'animate-spin' : ''}`} />
+                      <span>抓取图标</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -619,8 +729,8 @@ export const BookmarkManager: React.FC = () => {
                 />
               </div>
 
-              {/* Category & Pinned */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Category & Sort Order */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
                     所属分类 *
@@ -640,14 +750,32 @@ export const BookmarkManager: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                    排序权重 (越小越靠前)
+                    排位序号 (越小排在越前面)
                   </label>
-                  <input
-                    type="number"
-                    value={formData.sortOrder}
-                    onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: Math.max(1, (prev.sortOrder || 1) - 1) }))}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors"
+                      title="排位序号 -1"
+                    >
+                      <Minus className="w-3.5 h-3.5" />
+                    </button>
+                    <input
+                      type="number"
+                      value={formData.sortOrder}
+                      onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
+                      className="w-full px-3 py-2 text-sm text-center font-mono font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: (prev.sortOrder || 0) + 1 }))}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors"
+                      title="排位序号 +1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -781,17 +909,17 @@ export const BookmarkManager: React.FC = () => {
               </div>
 
               {/* Buttons */}
-              <div className="flex justify-end gap-2 pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-zinc-100 dark:border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className="px-4 py-2.5 text-sm rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-sm font-medium rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                  className="px-6 py-2.5 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
                 >
                   {editingBookmark ? '保存修改' : '确认添加'}
                 </button>
