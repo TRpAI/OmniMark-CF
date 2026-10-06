@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
 import { AdminPage } from './pages/AdminPage';
 import { LoginModal } from './features/auth/components/LoginModal';
+import { AiAssistantDrawer } from './features/ai/components/AiAssistantDrawer';
 import { PWAInstallBottomBanner } from './components/PWAInstallBanner';
 import { useAuthStore } from './stores/auth.store';
 import { useBookmarkStore } from './stores/bookmark.store';
@@ -29,6 +30,9 @@ export default function App() {
 
       {/* Admin Login Modal */}
       <LoginModal />
+
+      {/* AI Assistant Drawer */}
+      <AiAssistantDrawer />
 
       {/* PWA Install Bottom Floating Banner & Modal */}
       <PWAInstallBottomBanner />

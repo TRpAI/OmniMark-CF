@@ -6,6 +6,7 @@ import categoryRoutes from './routes/category.routes';
 import settingsRoutes from './routes/settings.routes';
 import uploadRoutes from './routes/upload.routes';
 import pageRoutes from './routes/page.routes';
+import aiRoutes from './routes/ai.routes';
 import { securityHeaders } from './middleware/security.middleware';
 import { jsonDb } from './repositories/json.repository';
 
@@ -38,7 +39,7 @@ const handleHealth = (req: Request, res: Response) => {
     },
     security: {
       authMode: 'single-user',
-      passwordAlgorithm: 'PBKDF2-HMAC-SHA512 (210,000 iterations)',
+      passwordAlgorithm: 'PBKDF2-HMAC-SHA512 (100,000 iterations)',
     },
   };
 
@@ -81,6 +82,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/pages', pageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

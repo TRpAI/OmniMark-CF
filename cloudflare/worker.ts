@@ -448,6 +448,203 @@ export default {
         return new Response(JSON.stringify({ success: true, data: settings }), { headers: corsHeaders });
       }
 
+      // 6. AI 智能助手接口 (/api/ai/*)
+      const callGeminiRest = async (promptText: string) => {
+        const apiKey = (env as any).GEMINI_API_KEY || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY);
+        if (!apiKey) return null;
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: promptText }] }],
+              }),
+            }
+          );
+          if (!geminiRes.ok) return null;
+          const geminiData: any = await geminiRes.json();
+          return geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+        } catch {
+          return null;
+        }
+      };
+
+      if ((path === '/api/ai/site-info' || path === '/ai/site-info') && request.method === 'POST') {
+        const { url: targetUrl, existingCategories = [] } = (await request.json().catch(() => ({}))) as any;
+        if (!targetUrl) return new Response(JSON.stringify({ success: false, error: '请提供目标网址' }), { status: 400, headers: corsHeaders });
+
+        let normalized = targetUrl.trim();
+        if (!/^https?:\/\//i.test(normalized)) normalized = 'https://' + normalized;
+        let parsedHost = '';
+        try { parsedHost = new URL(normalized).hostname; } catch {}
+
+        let rawTitle = '';
+        let rawDesc = '';
+        let rawFavicon = `https://www.google.com/s2/favicons?domain=${parsedHost}&sz=128`;
+        try {
+          const fetchRes = await fetch(normalized, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OmniMarkEdge/2.0)' },
+          });
+          if (fetchRes.ok) {
+            const html = await fetchRes.text();
+            const tm = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+            if (tm) rawTitle = tm[1].trim();
+            const dm = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                       html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+            if (dm) rawDesc = dm[1].trim();
+          }
+        } catch {}
+
+        const prompt = `你是一个专业的互联网网站分析与信息架构专家。请针对以下网址，提炼并生成最适合收录进导航书签系统的中文信息：
+目标网址: ${normalized}
+域名: ${parsedHost}
+网页抓取标题: ${rawTitle || '无'}
+网页抓取描述: ${rawDesc || '无'}
+现有分类列表: ${JSON.stringify(existingCategories)}
+
+请以严格的纯 JSON 格式输出（不要添加任何 markdown 代码块标记）：
+{
+  "title": "简练通用的站点名称（如 'GitHub', 'Figma 设计工具'，30字以内）",
+  "description": "50~100字左右的高质量中文简介，概括核心定位与主打功能",
+  "tags": ["3到5个精炼中文标签"],
+  "suggestedCategory": "从现有分类列表中选择最契合的一项；若无完全契合的，给出中文分类建议",
+  "favicon": "${rawFavicon}"
+}`;
+
+        const aiText = await callGeminiRest(prompt);
+        if (aiText) {
+          try {
+            const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            const parsed = JSON.parse(clean);
+            return new Response(JSON.stringify({
+              success: true,
+              data: {
+                title: parsed.title || rawTitle || parsedHost,
+                description: parsed.description || rawDesc || `${parsedHost} 站点导航。`,
+                tags: Array.isArray(parsed.tags) ? parsed.tags : ['精选工具'],
+                suggestedCategory: parsed.suggestedCategory || existingCategories[0] || '常用精选',
+                favicon: parsed.favicon || rawFavicon,
+              },
+            }), { headers: corsHeaders });
+          } catch {}
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            title: rawTitle || parsedHost || '新站点',
+            description: rawDesc || `${parsedHost} 站点资源导航与直达。`,
+            tags: ['精选站点'],
+            suggestedCategory: existingCategories[0] || '默认分类',
+            favicon: rawFavicon,
+          },
+        }), { headers: corsHeaders });
+      }
+
+      if ((path === '/api/ai/site-summary' || path === '/ai/site-summary') && request.method === 'POST') {
+        const { url: targetUrl, title = '', description = '' } = (await request.json().catch(() => ({}))) as any;
+        if (!targetUrl) return new Response(JSON.stringify({ success: false, error: '请提供目标网址' }), { status: 400, headers: corsHeaders });
+
+        const prompt = `你是一个资深的数字产品评测专家。请针对以下网站进行深入、客观的智能摘要与功能解读：
+网址: ${targetUrl}
+标题: ${title}
+已知简介: ${description}
+
+请以严格的纯 JSON 格式输出（不要添加 markdown 代码块）：
+{
+  "oneSentenceSummary": "精炼的一句话核心定位（25~45字）",
+  "coreFeatures": ["核心特性1", "核心特性2", "核心特性3", "核心特性4"],
+  "targetAudience": ["适用人群或典型工作场景1", "适用场景2"],
+  "keyHighlights": ["亮点或差异化特色1", "差异化特色2"],
+  "recommendedUsage": "高效使用建议或操作小窍门（50~80字）",
+  "relatedKeywords": ["标签1", "标签2", "标签3", "标签4"]
+}`;
+
+        const aiText = await callGeminiRest(prompt);
+        if (aiText) {
+          try {
+            const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            const parsed = JSON.parse(clean);
+            return new Response(JSON.stringify({ success: true, data: parsed }), { headers: corsHeaders });
+          } catch {}
+        }
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            oneSentenceSummary: `${title || '该站点'} 是一个实用的数字在线服务。`,
+            coreFeatures: [description || '核心功能服务', '支持多端快捷浏览与直达'],
+            targetAudience: ['工具使用者与数字探索者'],
+            keyHighlights: ['随开随用，高效直达'],
+            recommendedUsage: '直接通过导航卡片访问即可使用全部功能。',
+            relatedKeywords: ['在线工具', '精选资源'],
+          },
+        }), { headers: corsHeaders });
+      }
+
+      if ((path === '/api/ai/assistant' || path === '/ai/assistant') && request.method === 'POST') {
+        const { query } = (await request.json().catch(() => ({}))) as any;
+        if (!query) return new Response(JSON.stringify({ success: false, error: '请输入您的问题' }), { status: 400, headers: corsHeaders });
+
+        let bookmarks: any[] = [];
+        let categories: any[] = [];
+        if (env.DB) {
+          const [bRes, cRes]: any = await Promise.all([
+            env.DB.prepare('SELECT id, categoryId, title, url, description, tags FROM bookmarks LIMIT 100').all(),
+            env.DB.prepare('SELECT id, name FROM categories').all(),
+          ]);
+          bookmarks = bRes.results || [];
+          categories = cRes.results || [];
+        }
+
+        const catMap = new Map(categories.map((c: any) => [c.id, c.name]));
+        const contextList = bookmarks.map((b: any) => ({
+          title: b.title,
+          url: b.url,
+          description: b.description || '',
+          tags: b.tags ? JSON.parse(b.tags) : [],
+          category: catMap.get(b.categoryId) || '未分类',
+        }));
+
+        const prompt = `你是一个智能书签知识库助理。用户提问: "${query}"
+用户收藏夹（共 ${contextList.length} 项）:
+${JSON.stringify(contextList, null, 2)}
+
+请按要求回答：优先从书签库中寻找匹配工具，附带 Markdown 链接格式 [站点名](URL)，并给出清晰理由。
+纯 JSON 输出（不带 markdown 块）：
+{
+  "answer": "排版精美 Markdown 文本回答",
+  "recommendedBookmarks": [{ "title": "站点名称", "url": "网址" }]
+}`;
+
+        const aiText = await callGeminiRest(prompt);
+        if (aiText) {
+          try {
+            const clean = aiText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            const parsed = JSON.parse(clean);
+            return new Response(JSON.stringify({ success: true, data: parsed }), { headers: corsHeaders });
+          } catch {}
+        }
+
+        const kws = query.toLowerCase().split(/\s+/);
+        const matched = contextList.filter((b: any) => {
+          const str = `${b.title} ${b.description} ${b.tags.join(' ')} ${b.category}`.toLowerCase();
+          return kws.some((k: string) => str.includes(k));
+        }).slice(0, 5);
+
+        return new Response(JSON.stringify({
+          success: true,
+          data: {
+            answer: matched.length > 0
+              ? '为您在书签库中找到以下相关站点：\n\n' + matched.map((m: any) => `* [${m.title}](${m.url}) - ${m.description || '点击直达'}`).join('\n')
+              : '未在现有书签库中匹配到完全吻合的站点，建议输入更具体的名称或类别。',
+            recommendedBookmarks: matched.map((m: any) => ({ title: m.title, url: m.url })),
+          },
+        }), { headers: corsHeaders });
+      }
+
       return new Response(JSON.stringify({ success: false, error: 'Endpoint not implemented in Worker preview' }), {
         status: 404,
         headers: corsHeaders,

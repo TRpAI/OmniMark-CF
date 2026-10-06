@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Settings, LogOut, ShieldCheck, Lock } from 'lucide-react';
+import { Compass, Settings, LogOut, ShieldCheck, Lock, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 import { useUiStore } from '../stores/ui.store';
 import { useBookmarkStore } from '../stores/bookmark.store';
@@ -8,7 +8,7 @@ import { PWAInstallNavbarButton } from './PWAInstallBanner';
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, logout } = useAuthStore();
-  const { currentView, setCurrentView, setLoginModalOpen } = useUiStore();
+  const { currentView, setCurrentView, setLoginModalOpen, toggleAiAssistant } = useUiStore();
   const { settings } = useBookmarkStore();
 
   const handleAdminAction = () => {
@@ -46,8 +46,18 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Right: PWA Install + Management Access */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right: AI Assistant + PWA Install + Management Access */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* AI Assistant Button */}
+          <button
+            onClick={() => toggleAiAssistant()}
+            title="AI 智能助手 (智能摘要 · 信息提炼 · 全站寻宝)"
+            className="inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-2 text-sm font-semibold rounded-xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:via-purple-500/20 hover:to-pink-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60 shadow-xs hover:shadow-sm transition-all cursor-pointer group"
+          >
+            <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:rotate-12 group-hover:scale-110 transition-transform" />
+            <span className="hidden sm:inline">AI 助手</span>
+          </button>
+
           {/* PWA Install Button */}
           <PWAInstallNavbarButton />
 

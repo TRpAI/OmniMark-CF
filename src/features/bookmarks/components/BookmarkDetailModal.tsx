@@ -16,11 +16,14 @@ import {
   X,
   Sparkles,
   ChevronRight,
+  Loader2,
+  Bot,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { renderCategoryIcon } from '../../../utils/iconMap';
+import { aiApi, AiSiteSummaryResult } from '../../../api/ai.api';
 
 export const BookmarkDetailModal: React.FC = () => {
   const {
@@ -32,11 +35,22 @@ export const BookmarkDetailModal: React.FC = () => {
     openBookmarkDetail,
     setActiveCategory,
   } = useBookmarkStore();
-  const { showToast } = useUiStore();
+  const { showToast, openAiAssistantWithBookmark } = useUiStore();
 
   const [copied, setCopied] = useState(false);
   const [showQrCode, setShowQrCode] = useState(false);
   const [imgError, setImgError] = useState(false);
+
+  // AI Summary State
+  const [aiSummary, setAiSummary] = useState<AiSiteSummaryResult | null>(null);
+  const [isGeneratingAiSummary, setIsGeneratingAiSummary] = useState(false);
+  const [aiSummaryCopied, setAiSummaryCopied] = useState(false);
+
+  // Reset AI summary when viewing a different bookmark
+  useEffect(() => {
+    setAiSummary(null);
+    setAiSummaryCopied(false);
+  }, [selectedBookmarkDetail?.id]);
 
   // Close on Escape key
   useEffect(() => {
@@ -115,6 +129,44 @@ export const BookmarkDetailModal: React.FC = () => {
       setActiveCategory(bookmark.categoryId);
       closeBookmarkDetail();
     }
+  };
+
+  const handleGenerateAiSummary = async () => {
+    setIsGeneratingAiSummary(true);
+    try {
+      const res = await aiApi.generateSiteSummary(bookmark.url, bookmark.title, bookmark.description || '');
+      setAiSummary(res);
+      showToast('AI 深度摘要已生成', 'success');
+    } catch (err: any) {
+      showToast(err?.message || '生成 AI 摘要失败，请重试', 'error');
+    } finally {
+      setIsGeneratingAiSummary(false);
+    }
+  };
+
+  const handleCopyAiSummary = async () => {
+    if (!aiSummary) return;
+    const text = `【${bookmark.title}】AI 智能深度摘要\n` +
+      `官网：${bookmark.url}\n` +
+      `核心定位：${aiSummary.oneSentenceSummary}\n\n` +
+      `核心功能：\n${aiSummary.coreFeatures.map((f) => `• ${f}`).join('\n')}\n\n` +
+      `适用人群：\n${aiSummary.targetAudience.map((a) => `• ${a}`).join('\n')}\n\n` +
+      `亮点特色：\n${aiSummary.keyHighlights.map((h) => `• ${h}`).join('\n')}\n\n` +
+      `使用建议：${aiSummary.recommendedUsage}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setAiSummaryCopied(true);
+      showToast('AI 摘要已复制到剪贴板', 'success');
+      setTimeout(() => setAiSummaryCopied(false), 2000);
+    } catch {
+      showToast('复制失败', 'error');
+    }
+  };
+
+  const handleOpenInAiAssistant = () => {
+    const bmId = bookmark.id;
+    closeBookmarkDetail();
+    openAiAssistantWithBookmark(bmId);
   };
 
   const formatDate = (dateStr?: string) => {
@@ -332,6 +384,178 @@ export const BookmarkDetailModal: React.FC = () => {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* AI Smart Summary Section */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <span>AI 智能深度摘要</span>
+                    <span className="text-[10px] font-medium px-1.5 py-0.2 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-300">
+                      Gemini
+                    </span>
+                  </h3>
+                </div>
+              </div>
+
+              {aiSummary && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCopyAiSummary}
+                    className="text-xs text-zinc-500 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+                  >
+                    {aiSummaryCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{aiSummaryCopied ? '已复制' : '复制'}</span>
+                  </button>
+                  <button
+                    onClick={handleGenerateAiSummary}
+                    disabled={isGeneratingAiSummary}
+                    className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer disabled:opacity-50"
+                  >
+                    重新生成
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {aiSummary ? (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-pink-500/5 border border-indigo-200/70 dark:border-indigo-800/60 space-y-4 animate-in fade-in duration-200">
+                {/* One sentence core positioning */}
+                <div className="p-3.5 rounded-xl bg-white/80 dark:bg-zinc-900/80 border border-indigo-100 dark:border-indigo-900/40 shadow-xs">
+                  <div className="flex items-start gap-2.5">
+                    <Sparkles className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 mb-0.5">核心定位</p>
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 leading-snug">
+                        {aiSummary.oneSentenceSummary}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Core Features */}
+                {aiSummary.coreFeatures && aiSummary.coreFeatures.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 mb-2">主打功能与特性</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {aiSummary.coreFeatures.map((feat, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-start gap-2 p-2.5 rounded-xl bg-white/70 dark:bg-zinc-900/70 border border-zinc-200/50 dark:border-zinc-800/50 text-xs text-zinc-700 dark:text-zinc-300"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 mt-1.5" />
+                          <span className="leading-relaxed">{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Target Audience & Highlights */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  {aiSummary.targetAudience && aiSummary.targetAudience.length > 0 && (
+                    <div className="p-3 rounded-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200/40 dark:border-zinc-800/40">
+                      <p className="text-[11px] font-semibold text-zinc-400 mb-1.5">适用人群 / 场景</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {aiSummary.targetAudience.map((aud, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-[11px] text-zinc-700 dark:text-zinc-300"
+                          >
+                            {aud}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {aiSummary.keyHighlights && aiSummary.keyHighlights.length > 0 && (
+                    <div className="p-3 rounded-xl bg-white/60 dark:bg-zinc-900/60 border border-zinc-200/40 dark:border-zinc-800/40">
+                      <p className="text-[11px] font-semibold text-zinc-400 mb-1.5">特色亮点</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {aiSummary.keyHighlights.map((hl, i) => (
+                          <span
+                            key={i}
+                            className="px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-[11px] text-indigo-700 dark:text-indigo-300"
+                          >
+                            {hl}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Recommended Usage Tips */}
+                {aiSummary.recommendedUsage && (
+                  <div className="p-3 rounded-xl bg-amber-500/5 dark:bg-amber-500/10 border border-amber-500/20 text-xs text-amber-900 dark:text-amber-200 leading-relaxed">
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">高效使用建议：</span>
+                    {aiSummary.recommendedUsage}
+                  </div>
+                )}
+
+                {/* Action footer */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    onClick={handleOpenInAiAssistant}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 cursor-pointer group"
+                  >
+                    <Bot className="w-3.5 h-3.5" />
+                    <span>在全功能 AI 助手中对话寻宝</span>
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50/70 via-purple-50/50 to-pink-50/30 dark:from-zinc-900/80 dark:via-zinc-900/60 dark:to-zinc-900/40 border border-dashed border-indigo-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 text-center sm:text-left">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                      一键智能提炼站点深度摘要
+                    </h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      利用 Gemini 自动提炼核心功能、适用人群、特色亮点与高效技巧
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={handleGenerateAiSummary}
+                    disabled={isGeneratingAiSummary}
+                    className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs font-semibold shadow-xs hover:shadow-md transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isGeneratingAiSummary ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>AI 智能解读中...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>立即智能解读</span>
+                      </>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={handleOpenInAiAssistant}
+                    title="在 AI 智能助手面板中打开"
+                    className="p-2.5 rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-300 transition-colors cursor-pointer"
+                  >
+                    <Bot className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Tags Section */}

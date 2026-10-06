@@ -22,6 +22,7 @@ import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { uploadApi } from '../../../api/settings.api';
+import { aiApi } from '../../../api/ai.api';
 
 export const BookmarkManager: React.FC = () => {
   const { bookmarks, categories, createBookmark, updateBookmark, deleteBookmark } = useBookmarkStore();
@@ -33,6 +34,7 @@ export const BookmarkManager: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isFetchingFavicon, setIsFetchingFavicon] = useState(false);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [deleteConfirmBm, setDeleteConfirmBm] = useState<Bookmark | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -108,6 +110,41 @@ export const BookmarkManager: React.FC = () => {
       showToast('获取图标失败，可手动填写图标 URL', 'error');
     } finally {
       setIsFetchingFavicon(false);
+    }
+  };
+
+  const handleAiAutoFill = async () => {
+    if (!formData.url.trim()) {
+      showToast('请先输入网址链接', 'error');
+      return;
+    }
+    setIsAiAnalyzing(true);
+    try {
+      const categoryNames = categories.map((c) => c.name);
+      const res = await aiApi.analyzeSiteInfo(formData.url.trim(), categoryNames);
+
+      let targetCatId = formData.categoryId || categories[0]?.id || '';
+      if (res.suggestedCategory) {
+        const matched = categories.find(
+          (c) => c.name.toLowerCase() === res.suggestedCategory?.toLowerCase()
+        );
+        if (matched) targetCatId = matched.id;
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        title: res.title || prev.title,
+        description: res.description || prev.description,
+        tags: res.tags && res.tags.length > 0 ? res.tags.join(', ') : prev.tags,
+        categoryId: targetCatId,
+        favicon: res.favicon || prev.favicon,
+      }));
+
+      showToast('AI 已自动补齐网站标题、简介、标签与分类！', 'success');
+    } catch (err: any) {
+      showToast(err?.message || 'AI 分析失败，可手动填写', 'error');
+    } finally {
+      setIsAiAnalyzing(false);
     }
   };
 
@@ -545,6 +582,16 @@ export const BookmarkManager: React.FC = () => {
                     placeholder="https://example.com"
                     className="flex-1 px-3.5 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                   />
+                  <button
+                    type="button"
+                    onClick={handleAiAutoFill}
+                    disabled={isAiAnalyzing || !formData.url.trim()}
+                    className="px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/50 flex items-center gap-1.5 shrink-0 transition-all cursor-pointer disabled:opacity-50"
+                    title="利用 Gemini AI 自动提取站点名称、简介、标签并推荐分类"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 ${isAiAnalyzing ? 'animate-spin' : ''}`} />
+                    <span>{isAiAnalyzing ? 'AI 提取中...' : 'AI 智能填写'}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleFetchFavicon}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ExternalLink, Copy, Check, Pin, Eye, Globe, Lock } from 'lucide-react';
+import { ExternalLink, Copy, Check, Pin, Eye, Globe, Lock, Sparkles } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
@@ -10,7 +10,7 @@ interface BookmarkCardProps {
 
 export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
   const { recordBookmarkClick, settings, openBookmarkDetail } = useBookmarkStore();
-  const { showToast } = useUiStore();
+  const { showToast, openAiAssistantWithBookmark } = useUiStore();
   const [copied, setCopied] = useState(false);
   const [imgError, setImgError] = useState(false);
 
@@ -128,6 +128,16 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = ({ bookmark }) => {
 
             {/* Action buttons (Desktop hover) */}
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openAiAssistantWithBookmark(bookmark.id);
+                }}
+                title="AI 智能摘要与解读"
+                className="p-1.5 rounded-lg text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+              </button>
               <button
                 onClick={handleCopy}
                 title="复制网址"
