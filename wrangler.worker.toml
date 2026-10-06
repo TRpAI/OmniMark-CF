@@ -1,6 +1,6 @@
 name = "omnimark-api"
+main = "cloudflare/worker.js"
 compatibility_date = "2024-09-01"
-pages_build_output_dir = "dist"
 
 # Cloudflare D1 数据库绑定（请将 database_id 替换为您的实际 D1 数据库 UUID）
 [[d1_databases]]
