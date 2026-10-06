@@ -162,28 +162,27 @@ export const AdminPage: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Mobile Horizontal Navigation Tabs (Visible on small screens) */}
-      <div className="lg:hidden mb-6 overflow-x-auto pb-2 scrollbar-none">
-        <div className="flex items-center gap-1.5 min-w-max p-1 rounded-2xl bg-zinc-100/90 dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800/60">
+      {/* 2. Mobile Responsive Grid Navigation (100% width, No Horizontal Scroll / 不要左右移动) */}
+      <div className="lg:hidden mb-5">
+        <div className="grid grid-cols-4 gap-1.5 p-1.5 rounded-2xl bg-zinc-100/90 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs">
           {navSections.flatMap((s) => s.items).map((item) => {
             const Icon = item.icon;
             const isActive = adminTab === item.id;
             return (
               <button
                 key={item.id}
+                type="button"
                 onClick={() => setAdminTab(item.id)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-[11px] font-medium transition-all cursor-pointer relative select-none ${
                   isActive
-                    ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white'
+                    ? 'bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 font-bold shadow-xs ring-1 ring-zinc-200/60 dark:ring-zinc-700/60'
+                    : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-white/40 dark:hover:bg-zinc-800/40'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
-                {item.badge && (
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${item.badgeColor}`}>
-                    {item.badge}
-                  </span>
+                <Icon className={`w-4 h-4 mb-1 shrink-0 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-zinc-400'}`} />
+                <span className="truncate w-full text-center leading-tight">{item.label}</span>
+                {item.highlight && !isActive && (
+                  <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-500" />
                 )}
               </button>
             );

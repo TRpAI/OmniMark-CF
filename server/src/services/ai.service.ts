@@ -79,13 +79,13 @@ export class AiService {
   async fetchUpstreamModels(providerParam?: string, apiKeyParam?: string, baseUrlParam?: string): Promise<string[]> {
     const settings = await settingsRepository.getSettings();
     const provider = providerParam || settings.aiProvider || 'gemini';
-    const apiKey = apiKeyParam !== undefined ? apiKeyParam.trim() : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
-    const baseUrl = baseUrlParam !== undefined ? baseUrlParam.trim() : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
+    const apiKey = apiKeyParam?.trim() || settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '';
+    const baseUrl = baseUrlParam?.trim() || settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '';
 
     if (provider === 'gemini') {
       const effectiveKey = apiKey || process.env.GEMINI_API_KEY || '';
       if (!effectiveKey) {
-        return DEFAULT_AI_PROVIDER_MODELS.gemini;
+        throw new Error('未检测到 Gemini API Key，请先填入 Key 再从上游拉取模型列表');
       }
       const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
       const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
@@ -93,25 +93,33 @@ export class AiService {
         const res = await fetch(endpoint, { method: 'GET', headers: { 'Content-Type': 'application/json' } });
         if (!res.ok) {
           const errText = await res.text().catch(() => '');
-          throw new Error(`Google API 返回异常 (${res.status}): ${errText.slice(0, 120)}`);
+          let detail = `Google API 返回异常 (${res.status})`;
+          try {
+            const p = JSON.parse(errText);
+            if (p.error?.message) detail += `: ${p.error.message}`;
+          } catch {}
+          throw new Error(detail);
         }
         const data = await res.json() as any;
         if (data && Array.isArray(data.models)) {
           const modelList = data.models
             .filter((m: any) => Array.isArray(m.supportedGenerationMethods) && m.supportedGenerationMethods.includes('generateContent'))
             .map((m: any) => m.name.replace(/^models\//, ''))
-            .filter((name: string) => !name.includes('embedding') && !name.includes('aqa'));
+            .filter((name: string) => !name.includes('embedding') && !name.includes('aqa') && !name.includes('imagen'));
           if (modelList.length > 0) return modelList;
         }
       } catch (err: any) {
-        console.warn('Failed to fetch Gemini models from upstream, fallback to presets:', err.message);
-        throw err;
+        throw new Error(err.message || '从 Google API 获取模型列表失败，请检查 API Token 是否有效');
       }
       return DEFAULT_AI_PROVIDER_MODELS.gemini;
     }
 
     // OpenAI, DeepSeek, Anthropic (via gateway), SiliconFlow, Moonshot, Ollama or custom OpenAI-compatible API
-    const effectiveBaseUrl = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).replace(/\/+$/, '');
+    const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
+    let effectiveBaseUrl = (baseUrl || defaultBase).replace(/\/+$/, '');
+    if (provider === 'deepseek' && !effectiveBaseUrl.includes('/v1') && !effectiveBaseUrl.includes('/chat')) {
+      effectiveBaseUrl += '/v1';
+    }
     const endpoint = `${effectiveBaseUrl}/models`;
 
     try {
@@ -125,7 +133,16 @@ export class AiService {
       const res = await fetch(endpoint, { method: 'GET', headers });
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
-        throw new Error(`上游接口返回异常 (${res.status}): ${errText.slice(0, 120)}`);
+        let detail = `上游接口返回异常 (${res.status})`;
+        try {
+          const p = JSON.parse(errText);
+          if (p.error?.message) detail += `: ${p.error.message}`;
+          else if (p.message) detail += `: ${p.message}`;
+          else if (errText) detail += `: ${errText.slice(0, 120)}`;
+        } catch {
+          if (errText) detail += `: ${errText.slice(0, 120)}`;
+        }
+        throw new Error(detail);
       }
       const data = await res.json() as any;
       if (data && Array.isArray(data.data)) {
@@ -135,8 +152,7 @@ export class AiService {
         }
       }
     } catch (err: any) {
-      console.warn('Failed to fetch OpenAI-compatible models from upstream:', err.message);
-      throw err;
+      throw new Error(err.message || '获取模型列表失败，请检查 API Token 与接口地址配置');
     }
 
     return DEFAULT_AI_PROVIDER_MODELS[provider] || DEFAULT_AI_PROVIDER_MODELS.openai;
@@ -153,9 +169,13 @@ export class AiService {
   ): Promise<{ success: boolean; model: string; message: string; sampleResponse?: string }> {
     const settings = await settingsRepository.getSettings();
     const provider = providerParam || settings.aiProvider || 'gemini';
-    const apiKey = apiKeyParam !== undefined ? apiKeyParam.trim() : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
-    const baseUrl = baseUrlParam !== undefined ? baseUrlParam.trim() : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
-    const model = modelParam?.trim() || settings.aiModel?.trim() || 'gemini-2.5-flash';
+    const apiKey = apiKeyParam?.trim() || settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '';
+    const baseUrl = baseUrlParam?.trim() || settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '';
+    const model = modelParam?.trim() || settings.aiCustomModelName?.trim() || settings.aiModel?.trim() || (provider === 'deepseek' ? 'deepseek-chat' : 'gemini-2.5-flash');
+
+    if (provider !== 'gemini' && !apiKey) {
+      throw new Error('请先填入 API Token / API Key 后再进行连接测试');
+    }
 
     const testPrompt = '请简短回复一句中文：“连接成功，我是 [当前模型名称]，随时为您提供全站智能服务！”';
 
@@ -190,34 +210,46 @@ export class AiService {
   ): Promise<string> {
     const settings = await settingsRepository.getSettings();
     const provider = override?.provider || settings.aiProvider || 'gemini';
-    const apiKey = override?.apiKey !== undefined ? override.apiKey : (settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '');
-    const baseUrl = override?.baseUrl !== undefined ? override.baseUrl : (settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '');
-    const model = override?.model || settings.aiCustomModelName || settings.aiModel || 'gemini-2.5-flash';
+    const apiKey = override?.apiKey?.trim() || settings.aiApiKey?.trim() || process.env.GEMINI_API_KEY || '';
+    const baseUrl = override?.baseUrl?.trim() || settings.aiBaseUrl?.trim() || DEFAULT_AI_BASE_URLS[provider] || '';
+    const model = override?.model?.trim() || settings.aiCustomModelName?.trim() || settings.aiModel?.trim() || (provider === 'deepseek' ? 'deepseek-chat' : 'gemini-2.5-flash');
     const systemPrompt = override?.systemPrompt || '你是一个专业的网站分析与书签导航专家，请给出客观、精准的高质量回答。';
 
     // 1. Google Gemini 官方 SDK 或 REST 协议
     if (provider === 'gemini') {
       const effectiveKey = apiKey || process.env.GEMINI_API_KEY || '';
       if (!effectiveKey) {
-        throw new Error('未配置 Gemini API Key，请在后台设置中填写或配置环境变量');
+        throw new Error('未配置 Gemini API Key，请在后台设置中填写 Token 或在环境配置 GEMINI_API_KEY');
       }
+
+      const effectiveModel = model.replace(/^models\//, '') || 'gemini-2.5-flash';
 
       // 如果未指定特殊 BaseURL，优先使用 GoogleGenAI SDK
       if (!baseUrl || baseUrl === DEFAULT_AI_BASE_URLS.gemini) {
-        const ai = new GoogleGenAI({ apiKey: effectiveKey });
-        const res = await ai.models.generateContent({
-          model: model || 'gemini-2.5-flash',
-          contents: userPrompt,
-          config: {
-            systemInstruction: systemPrompt,
-          },
-        });
-        return res.text?.trim() || '';
+        try {
+          const ai = new GoogleGenAI({ apiKey: effectiveKey });
+          const res = await ai.models.generateContent({
+            model: effectiveModel,
+            contents: userPrompt,
+            config: {
+              systemInstruction: systemPrompt,
+            },
+          });
+          return res.text?.trim() || '';
+        } catch (err: any) {
+          let msg = err?.message || '';
+          if (msg.includes('API_KEY_INVALID') || msg.includes('400')) {
+            msg = 'Gemini API Key 无效，请检查填写的 Token';
+          } else if (msg.includes('NOT_FOUND') || msg.includes('404')) {
+            msg = `模型 '${effectiveModel}' 不存在，请切换为 gemini-2.5-flash 或重新拉取`;
+          }
+          throw new Error(msg || 'Gemini 服务调用失败');
+        }
       }
 
       // 走自定义 Base URL REST 代理
       const host = baseUrl.replace(/\/+$/, '');
-      const endpoint = `${host}/v1beta/models/${model || 'gemini-2.5-flash'}:generateContent?key=${effectiveKey}`;
+      const endpoint = `${host}/v1beta/models/${effectiveModel}:generateContent?key=${effectiveKey}`;
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -228,14 +260,54 @@ export class AiService {
       });
       if (!res.ok) {
         const errText = await res.text().catch(() => '');
-        throw new Error(`Gemini API 错误 (${res.status}): ${errText.slice(0, 150)}`);
+        let detail = `Gemini API 错误 (${res.status})`;
+        try {
+          const p = JSON.parse(errText);
+          if (p.error?.message) detail += `: ${p.error.message}`;
+        } catch {
+          if (errText) detail += `: ${errText.slice(0, 140)}`;
+        }
+        throw new Error(detail);
       }
       const data = await res.json() as any;
       return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     }
 
-    // 2. OpenAI / DeepSeek / Moonshot / SiliconFlow / Ollama / OneAPI / Custom OpenAI-compatible
-    const effectiveBaseUrl = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).replace(/\/+$/, '');
+    // 2. Anthropic 原生官方接口判断
+    if (provider === 'anthropic' && (baseUrl.includes('anthropic.com') || !baseUrl)) {
+      const endpoint = 'https://api.anthropic.com/v1/messages';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: model || 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userPrompt }],
+        }),
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        let detail = `Claude API 错误 (${res.status})`;
+        try {
+          const p = JSON.parse(errText);
+          if (p.error?.message) detail += `: ${p.error.message}`;
+        } catch {}
+        throw new Error(detail);
+      }
+      const data = await res.json() as any;
+      return data?.content?.[0]?.text?.trim() || '';
+    }
+
+    // 3. OpenAI / DeepSeek / Moonshot / SiliconFlow / Ollama / OneAPI / Custom OpenAI-compatible
+    let effectiveBaseUrl = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).replace(/\/+$/, '');
+    if (provider === 'deepseek' && !effectiveBaseUrl.includes('/v1') && !effectiveBaseUrl.includes('/chat')) {
+      effectiveBaseUrl += '/v1';
+    }
     const endpoint = `${effectiveBaseUrl}/chat/completions`;
 
     const headers: Record<string, string> = {
@@ -262,7 +334,16 @@ export class AiService {
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
-      throw new Error(`AI 服务提供商错误 (${res.status}): ${errText.slice(0, 150)}`);
+      let detail = `上游 AI 接口错误 (${res.status})`;
+      try {
+        const p = JSON.parse(errText);
+        if (p.error?.message) detail += `: ${p.error.message}`;
+        else if (p.message) detail += `: ${p.message}`;
+        else if (errText) detail += `: ${errText.slice(0, 140)}`;
+      } catch {
+        if (errText) detail += `: ${errText.slice(0, 140)}`;
+      }
+      throw new Error(detail);
     }
 
     const data = await res.json() as any;
