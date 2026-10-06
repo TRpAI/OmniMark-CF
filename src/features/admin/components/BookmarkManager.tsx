@@ -232,16 +232,17 @@ export const BookmarkManager: React.FC = () => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= filtered.length) return;
 
-    const currentBm = filtered[index];
-    const targetBm = filtered[targetIndex];
+    // Create a copy of the filtered array and swap items
+    const reorderedList = [...filtered];
+    const [movedItem] = reorderedList.splice(index, 1);
+    reorderedList.splice(targetIndex, 0, movedItem);
 
-    const newSortOrderCurrent = targetBm.sortOrder || targetIndex + 1;
-    const newSortOrderTarget = currentBm.sortOrder || index + 1;
-
-    const items = [
-      { id: currentBm.id, sortOrder: newSortOrderCurrent, categoryId: currentBm.categoryId },
-      { id: targetBm.id, sortOrder: newSortOrderTarget, categoryId: targetBm.categoryId },
-    ];
+    // Map new sequential sort orders (1, 2, 3...)
+    const items = reorderedList.map((item, idx) => ({
+      id: item.id,
+      sortOrder: idx + 1,
+      categoryId: item.categoryId,
+    }));
 
     try {
       await reorderBookmarks(items);
@@ -268,7 +269,12 @@ export const BookmarkManager: React.FC = () => {
         (privacyFilter === 'feed' && b.inFeed);
       return matchesSearch && matchesCat && matchesPrivacy;
     })
-    .sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
+    .sort((a, b) => {
+      const orderA = a.sortOrder ?? 9999;
+      const orderB = b.sortOrder ?? 9999;
+      if (orderA !== orderB) return orderA - orderB;
+      return (a.id || '').localeCompare(b.id || '');
+    });
 
   return (
     <div className="space-y-6">
@@ -326,7 +332,7 @@ export const BookmarkManager: React.FC = () => {
 
       {/* Bookmarks Display: Mobile Compact Cards (< md) & Desktop Table (>= md) */}
       {/* 1. Mobile Compact Cards */}
-      <div className="md:hidden space-y-2.5">
+      <div className="md:hidden space-y-3">
         {filtered.length === 0 ? (
           <div className="p-8 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
             未找到相关书签
@@ -337,13 +343,13 @@ export const BookmarkManager: React.FC = () => {
             return (
               <div
                 key={bm.id}
-                className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs space-y-2.5"
+                className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-xs space-y-2.5 transition-all"
               >
-                {/* Top Row: Favicon, Rank, Title, Badges */}
+                {/* Top Row: Favicon, Rank, Title, Badges, Direct Link */}
                 <div className="flex items-start justify-between gap-2.5">
                   <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                    {/* Rank Badge */}
-                    <span className="shrink-0 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 mt-0.5" title="当前排位序号">
+                    {/* Rank Capsule Badge */}
+                    <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 mt-0.5 shadow-2xs" title="排位序号">
                       #{bm.sortOrder || index + 1}
                     </span>
 
@@ -363,12 +369,12 @@ export const BookmarkManager: React.FC = () => {
                           {bm.title}
                         </h4>
                         {bm.isPinned && (
-                          <span className="p-0.5 rounded bg-amber-50 dark:bg-amber-950/40 text-amber-500" title="常用置顶">
-                            <Pin className="w-3 h-3 fill-amber-500/20" />
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-600 dark:bg-amber-950/70 dark:text-amber-300 border border-amber-200/60" title="常用置顶">
+                            置顶
                           </span>
                         )}
                         {bm.inFeed && (
-                          <span className="px-1 py-0.2 rounded text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60" title="已加入站点快讯">
+                          <span className="px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200/60" title="已加入站点快讯">
                             快讯
                           </span>
                         )}
@@ -383,81 +389,114 @@ export const BookmarkManager: React.FC = () => {
                       </p>
                     </div>
                   </div>
+
+                  {/* Direct Link Icon */}
+                  <a
+                    href={bm.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-full text-zinc-400 hover:text-indigo-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                    title="新窗口打开"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
 
-                {/* Bottom Row: Category & Reorder/Actions Bar */}
-                <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-100 dark:border-zinc-800/80 text-xs">
+                {/* Middle Row: Category Pill & Tags */}
+                <div className="flex items-center gap-1.5 flex-wrap text-xs">
                   {/* Category Pill */}
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/60 px-2 py-0.5 rounded-lg border border-zinc-200/50 dark:border-zinc-700/50 truncate max-w-[120px]">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-0.5 rounded-full border border-zinc-200/60 dark:border-zinc-700/60 truncate max-w-[140px]">
                     <Folder className="w-3 h-3 text-indigo-500 shrink-0" />
                     <span className="truncate">{category?.name || '未分类'}</span>
                   </span>
 
-                  {/* Actions Group */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {/* Move Up */}
+                  {/* Tags */}
+                  {bm.tags && bm.tags.length > 0 && (
+                    bm.tags.slice(0, 2).map((tag, tIdx) => (
+                      <span
+                        key={tIdx}
+                        className="inline-flex items-center gap-0.5 text-[10px] font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-2 py-0.5 rounded-full border border-zinc-200/40 dark:border-zinc-700/40"
+                      >
+                        <Tag className="w-2.5 h-2.5 text-zinc-400" />
+                        <span>{tag}</span>
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* Bottom Row: 快速快捷操作栏 (全部采用胶囊按钮) */}
+                <div className="pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-wrap items-center justify-between gap-1.5">
+                  {/* 排位上下移胶囊组 */}
+                  <div className="inline-flex items-center rounded-full bg-zinc-100/90 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-0.5 shadow-2xs">
                     <button
                       onClick={() => moveBookmark(index, 'up')}
                       disabled={index === 0}
                       title="上移排位"
-                      className="p-1 text-zinc-400 hover:text-indigo-600 disabled:opacity-20 disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
+                      <ArrowUp className="w-3 h-3" />
+                      <span>上移</span>
                     </button>
-                    {/* Move Down */}
+                    <div className="w-px h-3 bg-zinc-300 dark:bg-zinc-700 mx-0.5" />
                     <button
                       onClick={() => moveBookmark(index, 'down')}
                       disabled={index === filtered.length - 1}
                       title="下移排位"
-                      className="p-1 text-zinc-400 hover:text-indigo-600 disabled:opacity-20 disabled:hover:text-zinc-400 transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
+                      <ArrowDown className="w-3 h-3" />
+                      <span>下移</span>
                     </button>
+                  </div>
 
-                    <div className="w-[1px] h-3 bg-zinc-200 dark:bg-zinc-700 mx-0.5" />
-
-                    {/* Quick Feed */}
+                  {/* 快捷操作胶囊按钮组 */}
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {/* 快讯胶囊按钮 */}
                     <button
                       onClick={(e) => handleToggleFeedQuick(bm, e)}
-                      title={bm.inFeed ? '移出快讯' : '收录进快讯'}
-                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      title={bm.inFeed ? '已收录进快讯 (点击移出)' : '点击收录进快讯'}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all shadow-2xs cursor-pointer ${
                         bm.inFeed
-                          ? 'text-amber-600 bg-amber-50 dark:bg-amber-950/40'
-                          : 'text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                          ? 'bg-amber-500 text-white dark:bg-amber-600 font-semibold'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-zinc-700 border border-zinc-200/60 dark:border-zinc-700/60'
                       }`}
                     >
-                      <Rss className="w-3.5 h-3.5" />
+                      <Rss className="w-3 h-3" />
+                      <span>{bm.inFeed ? '已快讯' : '快讯'}</span>
                     </button>
 
-                    {/* Quick Pin */}
+                    {/* 置顶胶囊按钮 */}
                     <button
                       onClick={() => handleTogglePin(bm)}
-                      title={bm.isPinned ? '取消置顶' : '置顶'}
-                      className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                      title={bm.isPinned ? '已置顶 (点击取消)' : '点击置顶'}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all shadow-2xs cursor-pointer ${
                         bm.isPinned
-                          ? 'text-amber-500 bg-amber-50 dark:bg-amber-950/40'
-                          : 'text-zinc-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30'
+                          ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/80 dark:border-amber-700/80 font-semibold'
+                          : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-zinc-700 border border-zinc-200/60 dark:border-zinc-700/60'
                       }`}
                     >
-                      <Pin className="w-3.5 h-3.5" />
+                      <Pin className="w-3 h-3" />
+                      <span>{bm.isPinned ? '已置顶' : '置顶'}</span>
                     </button>
 
-                    {/* Edit */}
+                    {/* 编辑胶囊按钮 */}
                     <button
                       onClick={() => openEditModal(bm)}
-                      className="p-1.5 text-zinc-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-lg transition-colors cursor-pointer"
-                      title="编辑书签"
+                      title="编辑书签卡片"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-950/90 dark:text-indigo-300 dark:hover:bg-indigo-900 border border-indigo-200/70 dark:border-indigo-800/70 transition-all shadow-2xs cursor-pointer"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-3 h-3" />
+                      <span>编辑</span>
                     </button>
 
-                    {/* Delete */}
+                    {/* 删除胶囊按钮 */}
                     <button
                       onClick={() => setDeleteConfirmBm(bm)}
-                      className="p-1.5 text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors cursor-pointer"
                       title="删除书签"
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium text-rose-600 dark:text-rose-400 bg-rose-50/80 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 border border-rose-200/70 dark:border-rose-800/70 transition-all shadow-2xs cursor-pointer"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-3 h-3" />
+                      <span>删除</span>
                     </button>
                   </div>
                 </div>
@@ -755,22 +794,26 @@ export const BookmarkManager: React.FC = () => {
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: Math.max(1, (prev.sortOrder || 1) - 1) }))}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors"
+                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: Math.max(1, (Number(prev.sortOrder) || 1) - 1) }))}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors active:scale-95"
                       title="排位序号 -1"
                     >
                       <Minus className="w-3.5 h-3.5" />
                     </button>
                     <input
                       type="number"
+                      min={1}
                       value={formData.sortOrder}
-                      onChange={(e) => setFormData({ ...formData, sortOrder: Number(e.target.value) })}
-                      className="w-full px-3 py-2 text-sm text-center font-mono font-semibold rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none"
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setFormData({ ...formData, sortOrder: isNaN(val) ? 1 : Math.max(1, val) });
+                      }}
+                      className="w-full px-3 py-2 text-sm text-center font-mono font-bold rounded-xl bg-zinc-50 dark:bg-zinc-800/80 border border-zinc-200 dark:border-zinc-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
                     <button
                       type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: (prev.sortOrder || 0) + 1 }))}
-                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors"
+                      onClick={() => setFormData((prev) => ({ ...prev, sortOrder: (Number(prev.sortOrder) || 0) + 1 }))}
+                      className="w-10 h-10 flex items-center justify-center rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold cursor-pointer shrink-0 transition-colors active:scale-95"
                       title="排位序号 +1"
                     >
                       <Plus className="w-3.5 h-3.5" />

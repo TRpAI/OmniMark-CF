@@ -143,7 +143,22 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   reorderBookmarks: async (items) => {
-    await bookmarkApi.reorder(items);
+    // Optimistically update local bookmarks sortOrder
+    set((state) => {
+      const orderMap = new Map(items.map((it) => [it.id, it.sortOrder]));
+      const newBookmarks = state.bookmarks.map((b) => {
+        if (orderMap.has(b.id)) {
+          return { ...b, sortOrder: orderMap.get(b.id)! };
+        }
+        return b;
+      });
+      return { bookmarks: newBookmarks };
+    });
+    try {
+      await bookmarkApi.reorder(items);
+    } catch (e) {
+      console.warn('Failed to persist bookmark reorder:', e);
+    }
     get().loadInitialData();
   },
 
@@ -167,7 +182,21 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   },
 
   reorderCategories: async (items) => {
-    await categoryApi.reorder(items);
+    set((state) => {
+      const orderMap = new Map(items.map((it) => [it.id, it.sortOrder]));
+      const newCats = state.categories.map((c) => {
+        if (orderMap.has(c.id)) {
+          return { ...c, sortOrder: orderMap.get(c.id)! };
+        }
+        return c;
+      });
+      return { categories: newCats };
+    });
+    try {
+      await categoryApi.reorder(items);
+    } catch (e) {
+      console.warn('Failed to persist category reorder:', e);
+    }
     get().loadInitialData();
   },
 
