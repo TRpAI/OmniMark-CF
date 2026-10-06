@@ -215,11 +215,19 @@ async function runDatabaseRepair(env) {
   // 2. 字段兼容性自愈（向历史旧版表无缝补齐新增字段）
   const alterColumns = [
     'ALTER TABLE categories ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE categories ADD COLUMN sortOrder INTEGER DEFAULT 0',
+    'ALTER TABLE categories ADD COLUMN icon TEXT DEFAULT \'Folder\'',
     'ALTER TABLE bookmarks ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN isPinned INTEGER DEFAULT 0',
     'ALTER TABLE bookmarks ADD COLUMN inFeed INTEGER DEFAULT 0',
     'ALTER TABLE bookmarks ADD COLUMN feedCustomNote TEXT DEFAULT \'\'',
     'ALTER TABLE bookmarks ADD COLUMN feedHighlight INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN clickCount INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN sortOrder INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN tags TEXT DEFAULT \'[]\'',
     'ALTER TABLE custom_pages ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE custom_pages ADD COLUMN icon TEXT DEFAULT \'FileText\'',
+    'ALTER TABLE custom_pages ADD COLUMN sortOrder INTEGER DEFAULT 0',
   ];
   for (const sql of alterColumns) {
     try {
@@ -342,6 +350,28 @@ function checkRateLimit(ip, maxRequests = 5, windowMs = 60000) {
   return true;
 }
 
+// 全局数据库就绪状态缓存（单 Worker 实例内存常驻，首次 D1 请求极速初始化）
+let isDbReady = false;
+let dbInitPromise = null;
+
+async function ensureDatabaseReady(env) {
+  const db = env?.DB || env?.database || env?.DATABASE || env?.d1 || env?.D1 || env?.omnimark_db || env?.DB_BINDING;
+  if (!db) return;
+  if (isDbReady) return;
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      try {
+        await runDatabaseRepair(env);
+        isDbReady = true;
+      } catch (err) {
+        console.error('Auto migration failed on init:', err);
+        dbInitPromise = null;
+      }
+    })();
+  }
+  await dbInitPromise;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -380,6 +410,11 @@ export default {
     // 自动兼容多命名 D1 与 KV 绑定变量
     env.DB = env.DB || env.database || env.DATABASE || env.d1 || env.D1 || env.omnimark_db || env.DB_BINDING;
     env.CACHE_KV = env.CACHE_KV || env.cache_kv || env.KV || env.kv || env.CACHE;
+
+    // 确保 D1 数据库核心表结构与所有新增列已就绪（防 D1_ERROR: no such column）
+    if (env.DB && !isDbReady) {
+      await ensureDatabaseReady(env);
+    }
 
     // 统一 JSON 响应助手
     const json = (data, status = 200) =>
@@ -738,7 +773,20 @@ export default {
         query += ' ORDER BY isPinned DESC, sortOrder ASC';
 
         const stmt = env.DB.prepare(query);
-        const { results } = await stmt.bind(...params).all();
+        let results;
+        try {
+          const res = await stmt.bind(...params).all();
+          results = res.results;
+        } catch (bmErr) {
+          if (String(bmErr?.message).includes('no such column')) {
+            await runDatabaseRepair(env);
+            const retryStmt = env.DB.prepare(query);
+            const res = await retryStmt.bind(...params).all();
+            results = res.results;
+          } else {
+            throw bmErr;
+          }
+        }
 
         const formatted = (results || []).map(r => ({
           ...r,
@@ -978,14 +1026,32 @@ export default {
         const whereClause = isAuthenticated ? '' : 'WHERE (c.isPrivate = 0 OR c.isPrivate IS NULL)';
         const bookmarkJoinClause = isAuthenticated ? '' : 'AND (b.isPrivate = 0 OR b.isPrivate IS NULL)';
 
-        const { results } = await env.DB.prepare(`
-          SELECT c.*, COUNT(b.id) as count
-          FROM categories c
-          LEFT JOIN bookmarks b ON c.id = b.categoryId ${bookmarkJoinClause}
-          ${whereClause}
-          GROUP BY c.id
-          ORDER BY c.sortOrder ASC
-        `).all();
+        let results;
+        try {
+          const res = await env.DB.prepare(`
+            SELECT c.*, COUNT(b.id) as count
+            FROM categories c
+            LEFT JOIN bookmarks b ON c.id = b.categoryId ${bookmarkJoinClause}
+            ${whereClause}
+            GROUP BY c.id
+            ORDER BY c.sortOrder ASC
+          `).all();
+          results = res.results;
+        } catch (catErr) {
+          if (String(catErr?.message).includes('no such column')) {
+            await runDatabaseRepair(env);
+            const res = await env.DB.prepare(`
+              SELECT c.*, COUNT(b.id) as count
+              FROM categories c
+              LEFT JOIN bookmarks b ON c.id = b.categoryId
+              GROUP BY c.id
+              ORDER BY c.sortOrder ASC
+            `).all();
+            results = res.results;
+          } else {
+            throw catErr;
+          }
+        }
 
         const formatted = (results || []).map(c => ({
           ...c,
@@ -1127,7 +1193,17 @@ export default {
           const res = await env.DB.prepare(query).all();
           rows = res.results || [];
         } catch (e) {
-          rows = [];
+          if (String(e?.message).includes('no such column')) {
+            await runDatabaseRepair(env);
+            try {
+              const res = await env.DB.prepare('SELECT * FROM custom_pages ORDER BY sortOrder ASC, createdAt ASC').all();
+              rows = res.results || [];
+            } catch {
+              rows = [];
+            }
+          } else {
+            rows = [];
+          }
         }
 
         const formatted = rows.map((p) => ({
@@ -1954,9 +2030,24 @@ export default {
         error: `路由 ${path} 在边缘端未匹配，请确认请求路径或方法。`,
       }, 404);
     } catch (err) {
+      const errMsg = err?.message || 'Worker 运行时异常';
+      // 如果出现缺失列或缺失表的 SQLite 错误，立即强制执行自愈并重试
+      if (errMsg.includes('no such column') || errMsg.includes('no such table')) {
+        try {
+          isDbReady = false;
+          dbInitPromise = null;
+          await runDatabaseRepair(env);
+          isDbReady = true;
+          return json({
+            success: false,
+            autoRepaired: true,
+            error: `旧版数据库字段已自动执行自愈补齐（原提示: ${errMsg}），请重新尝试操作或刷新页面。`,
+          }, 500);
+        } catch {}
+      }
       return json({
         success: false,
-        error: err.message || 'Worker 运行时异常',
+        error: errMsg,
       }, 500);
     }
   },

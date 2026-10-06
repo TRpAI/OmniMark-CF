@@ -116,11 +116,19 @@ export async function runDatabaseRepair(env: Env) {
   // 2. 字段兼容性自愈（向历史旧版表无缝补齐新增字段）
   const alterColumns = [
     'ALTER TABLE categories ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE categories ADD COLUMN sortOrder INTEGER DEFAULT 0',
+    'ALTER TABLE categories ADD COLUMN icon TEXT DEFAULT \'Folder\'',
     'ALTER TABLE bookmarks ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN isPinned INTEGER DEFAULT 0',
     'ALTER TABLE bookmarks ADD COLUMN inFeed INTEGER DEFAULT 0',
     'ALTER TABLE bookmarks ADD COLUMN feedCustomNote TEXT DEFAULT \'\'',
     'ALTER TABLE bookmarks ADD COLUMN feedHighlight INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN clickCount INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN sortOrder INTEGER DEFAULT 0',
+    'ALTER TABLE bookmarks ADD COLUMN tags TEXT DEFAULT \'[]\'',
     'ALTER TABLE custom_pages ADD COLUMN isPrivate INTEGER DEFAULT 0',
+    'ALTER TABLE custom_pages ADD COLUMN icon TEXT DEFAULT \'FileText\'',
+    'ALTER TABLE custom_pages ADD COLUMN sortOrder INTEGER DEFAULT 0',
   ];
   for (const sql of alterColumns) {
     try {
@@ -202,6 +210,28 @@ export async function runDatabaseRepair(env: Env) {
   };
 }
 
+// 全局数据库就绪状态缓存
+let isDbReady = false;
+let dbInitPromise: Promise<void> | null = null;
+
+export async function ensureDatabaseReady(env: Env) {
+  const db: any = (env as any)?.DB || (env as any)?.database || (env as any)?.DATABASE || (env as any)?.d1 || (env as any)?.D1 || (env as any)?.omnimark_db || (env as any)?.DB_BINDING;
+  if (!db) return;
+  if (isDbReady) return;
+  if (!dbInitPromise) {
+    dbInitPromise = (async () => {
+      try {
+        await runDatabaseRepair(env);
+        isDbReady = true;
+      } catch (err) {
+        console.error('Auto migration failed on init:', err);
+        dbInitPromise = null;
+      }
+    })();
+  }
+  await dbInitPromise;
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -235,6 +265,11 @@ export default {
     // 自动兼容多命名 D1 与 KV 绑定变量
     env.DB = (env as any).DB || (env as any).database || (env as any).DATABASE || (env as any).d1 || (env as any).D1 || (env as any).omnimark_db || (env as any).DB_BINDING;
     env.CACHE_KV = (env as any).CACHE_KV || (env as any).cache_kv || (env as any).KV || (env as any).kv || (env as any).CACHE;
+
+    // 自动自愈检查表结构与字段（防 D1_ERROR: no such column）
+    if (env.DB && !isDbReady) {
+      await ensureDatabaseReady(env);
+    }
 
     try {
       // 1. Health check (with auto-repair on uninitialized DB)
@@ -341,7 +376,20 @@ export default {
 
         query += ' ORDER BY isPinned DESC, sortOrder ASC';
         const stmt = env.DB.prepare(query);
-        const { results } = await stmt.bind(...params).all();
+        let results: any[] = [];
+        try {
+          const res: any = await stmt.bind(...params).all();
+          results = res.results || [];
+        } catch (bmErr: any) {
+          if (String(bmErr?.message).includes('no such column')) {
+            await runDatabaseRepair(env);
+            const retryStmt = env.DB.prepare(query);
+            const res: any = await retryStmt.bind(...params).all();
+            results = res.results || [];
+          } else {
+            throw bmErr;
+          }
+        }
 
         const formatted = (results || []).map((r: any) => ({
           ...r,
@@ -405,7 +453,21 @@ export default {
         headers: corsHeaders,
       });
     } catch (err: any) {
-      return new Response(JSON.stringify({ success: false, error: err.message }), {
+      const errMsg = err?.message || 'Worker 运行时异常';
+      if (errMsg.includes('no such column') || errMsg.includes('no such table')) {
+        try {
+          isDbReady = false;
+          dbInitPromise = null;
+          await runDatabaseRepair(env);
+          isDbReady = true;
+          return new Response(JSON.stringify({
+            success: false,
+            autoRepaired: true,
+            error: `旧版数据库字段已自动补齐自愈（原提示: ${errMsg}），请重新尝试或刷新页面。`,
+          }), { status: 500, headers: corsHeaders });
+        } catch {}
+      }
+      return new Response(JSON.stringify({ success: false, error: errMsg }), {
         status: 500,
         headers: corsHeaders,
       });
