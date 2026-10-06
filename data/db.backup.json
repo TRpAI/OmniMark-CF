@@ -1,52 +1,30 @@
 {
   "users": [
     {
-      "id": "usr-admin-1",
+      "id": "usr-admin-default",
       "username": "admin",
-      "passwordHash": "4200fefad41205de545a7bc00eeff666:a10bd0ad7a4fc770d20f008d7ac335068986c52bc5c39bb70dda8766b8d6e617a92aff29c69108fb0f9d1d99cbde0ab199a5d898794ef78d3b280806193bb039",
-      "createdAt": "2025-01-01T00:00:00.000Z"
+      "passwordHash": "07942065c217f76e7399a4b650012550:2acaa0388f48388bb5ef7fe979b5792585cfa57db617fe0e3a8522f7b4284e6d43623d95dd2ff9cda2cceab6f0a9499a9b579362dd6984967fbb9bc205fc2417",
+      "createdAt": "2026-10-06T07:12:02.184Z"
     }
   ],
   "sessions": [
     {
-      "id": "sess-66d02818-24d4-413c-9e04-3955101ad3db",
-      "userId": "usr-admin-1",
-      "tokenHash": "dc00b75e981956bf8756ed368b4df0981e8cebacd27a9cac8f231321f2a103f8",
+      "id": "sess-09d6ce73-e3a7-447a-aee7-4f89ed5604bd",
+      "userId": "usr-admin-default",
+      "tokenHash": "acab0d407c51bb11591d80ca03d8df1691f927a12d1a8bf32558c74633d4ab28",
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T00:22:46.703Z",
-      "createdAt": "2026-10-03T00:22:46.703Z"
+      "userAgentHash": "4b2c7fc2a2eeadc588d00c3c8b47cba35cdcaf8445e6ba555ea290331c440907",
+      "expiresAt": "2026-11-05T07:12:02.185Z",
+      "createdAt": "2026-10-06T07:12:02.185Z"
     },
     {
-      "id": "sess-e66662a5-2e6d-4982-96df-539475adc1d9",
-      "userId": "usr-admin-1",
-      "tokenHash": "e26a5edeac8536d6c9c2b504a39dd7a52962054ca744af2d33160055ef67646c",
+      "id": "sess-b62394ab-44b1-4c6d-b46c-191168d8bb0e",
+      "userId": "usr-admin-default",
+      "tokenHash": "262115c5b2bb2e7f80249c558154d4e25a11a4b3cd46e737c1d2be9047fe4542",
       "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T00:22:54.968Z",
-      "createdAt": "2026-10-03T00:22:54.969Z"
-    },
-    {
-      "id": "sess-1d861b16-fa2f-4ae4-b973-90d5bf3e6dd0",
-      "userId": "usr-admin-1",
-      "tokenHash": "ba93fef42f456c1edffa4dabafef4f51c8af9996450d351ac9fc581e001c0343",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T09:11:40.067Z",
-      "createdAt": "2026-10-03T09:11:40.068Z"
-    },
-    {
-      "id": "sess-e34ed19e-3c9a-4d23-b97d-37e8a09a2a72",
-      "userId": "usr-admin-1",
-      "tokenHash": "7929c32204d30d2198471402badbaaf99177a08ed14d5253d95f0fdd66f14a31",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-03T04:29:13.950Z",
-      "createdAt": "2026-10-04T04:29:13.951Z"
-    },
-    {
-      "id": "sess-e1be7a17-6c70-402a-a384-4c4d396b368b",
-      "userId": "usr-admin-1",
-      "tokenHash": "212cb95d74fcaa947c26e8e6ecf9ff79e6c00e66c9dfcaf6b98c5ca7153e8813",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-03T04:44:36.748Z",
-      "createdAt": "2026-10-04T04:44:36.749Z"
+      "userAgentHash": "4b2c7fc2a2eeadc588d00c3c8b47cba35cdcaf8445e6ba555ea290331c440907",
+      "expiresAt": "2026-11-05T07:12:23.298Z",
+      "createdAt": "2026-10-06T07:12:23.298Z"
     }
   ],
   "categories": [

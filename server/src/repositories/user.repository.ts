@@ -36,6 +36,18 @@ export class UserRepository {
     return success;
   }
 
+  async update(id: string, data: Partial<User>): Promise<boolean> {
+    let success = false;
+    jsonDb.update((db) => {
+      const u = db.users.find((user) => user.id === id);
+      if (u) {
+        Object.assign(u, data);
+        success = true;
+      }
+    });
+    return success;
+  }
+
   async delete(id: string): Promise<boolean> {
     let success = false;
     jsonDb.update((db) => {

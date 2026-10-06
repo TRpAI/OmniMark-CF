@@ -32,14 +32,7 @@ class JsonDatabase {
 
   private getDefaultData(): DatabaseSchema {
     return {
-      users: [
-        {
-          id: 'usr-admin-1',
-          username: 'admin',
-          passwordHash: hashPassword('admin123'),
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      users: [],
       sessions: [],
       categories: INITIAL_CATEGORIES,
       bookmarks: INITIAL_BOOKMARKS,
@@ -218,15 +211,8 @@ class JsonDatabase {
       const db = this.read();
       let modified = false;
 
-      if (!Array.isArray(db.users) || db.users.length === 0) {
-        db.users = [
-          {
-            id: 'usr-admin-1',
-            username: 'admin',
-            passwordHash: hashPassword('admin123'),
-            createdAt: new Date().toISOString(),
-          },
-        ];
+      if (!Array.isArray(db.users)) {
+        db.users = [];
         modified = true;
       }
 

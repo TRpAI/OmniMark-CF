@@ -6,7 +6,79 @@ import { generateToken, hashToken, hashIdentifier } from '../security/token';
 import { User, Session } from '../../../packages/shared/types';
 
 export class AuthService {
+  async getStatus(): Promise<{ initialized: boolean; needsInit: boolean }> {
+    const users = await userRepository.findAll();
+    if (!users || users.length === 0) {
+      return { initialized: false, needsInit: true };
+    }
+    const user = users[0];
+    const isDefault = verifyPassword('admin123', user.passwordHash);
+    if (isDefault) {
+      return { initialized: false, needsInit: true };
+    }
+    return { initialized: true, needsInit: false };
+  }
+
+  async initAdminPassword(password: string, ip?: string, userAgent?: string): Promise<{ token: string; user: { id: string; username: string } }> {
+    const status = await this.getStatus();
+    if (!status.needsInit) {
+      throw new Error('管理员密码已完成初始化，请直接登录');
+    }
+    if (!password || password.trim().length < 6) {
+      throw new Error('密码长度不能少于 6 位');
+    }
+
+    const newHash = hashPassword(password.trim());
+    let users = await userRepository.findAll();
+    let user: User;
+
+    if (users && users.length > 0) {
+      user = users[0];
+      user.passwordHash = newHash;
+      user.username = 'admin';
+      await userRepository.update(user.id, user);
+    } else {
+      user = await userRepository.create({
+        id: 'usr-admin-default',
+        username: 'admin',
+        passwordHash: newHash,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    const rawToken = generateToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const session: Session = {
+      id: 'sess-' + crypto.randomUUID(),
+      userId: user.id,
+      tokenHash,
+      ipHash: ip ? hashIdentifier(ip) : undefined,
+      userAgentHash: userAgent ? hashIdentifier(userAgent) : undefined,
+      expiresAt,
+      createdAt: new Date().toISOString(),
+    };
+
+    await sessionRepository.create(session);
+
+    return {
+      token: rawToken,
+      user: {
+        id: user.id,
+        username: user.username,
+      },
+    };
+  }
+
   async login(username: string | undefined, password: string, ip?: string, userAgent?: string): Promise<{ token: string; user: { id: string; username: string } }> {
+    const status = await this.getStatus();
+    if (status.needsInit) {
+      const err: any = new Error('系统尚未初始化管理员密码，请先完成首次密码初始化');
+      err.needsInit = true;
+      throw err;
+    }
+
     let users = await userRepository.findAll();
     let user = users[0];
 
@@ -17,14 +89,9 @@ export class AuthService {
     }
 
     if (!user) {
-      // 若数据库尚无账号，自动创建首个单用户主账号
-      const defaultHash = hashPassword('admin123');
-      user = await userRepository.create({
-        id: 'usr-admin-default',
-        username: 'admin',
-        passwordHash: defaultHash,
-        createdAt: new Date().toISOString(),
-      });
+      const err: any = new Error('系统尚未初始化管理员密码，请先完成首次密码初始化');
+      err.needsInit = true;
+      throw err;
     }
 
     const isValid = verifyPassword(password, user.passwordHash);

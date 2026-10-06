@@ -124,22 +124,9 @@ export const UserManager: React.FC = () => {
           <span>单用户安全与密码管理</span>
         </h3>
         <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
-          系统采用严格的单用户管理员模式，无多用户账号泄露风险，提供企业级密码哈希防护与会话安全控制。
+          系统采用严格的单用户管理员模式，首次登入已强制完成专属密码初始化，杜绝默认弱口令风险，提供企业级密码哈希防护与会话安全控制。
         </p>
       </div>
-
-      {/* Default Password Alert (if still admin123) */}
-      {currentUser?.isDefaultPassword && (
-        <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-800/60 flex items-start gap-3 text-amber-900 dark:text-amber-200">
-          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <div className="flex-1 text-xs space-y-1">
-            <p className="font-semibold text-sm">系统当前正在使用初始默认密码</p>
-            <p className="text-amber-800/90 dark:text-amber-300/90 leading-relaxed">
-              为了保障您的站点书签及管理控制台安全，请务必立即在下方将默认密码修改为个人专属高强度密码。
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Grid: Security Status + Password Form */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

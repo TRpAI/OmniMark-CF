@@ -4,6 +4,36 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { verifyPassword } from '../security/password';
 
 export class AuthController {
+  async status(req: Request, res: Response): Promise<void> {
+    try {
+      const data = await authService.getStatus();
+      res.json({ success: true, data });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  }
+
+  async init(req: Request, res: Response): Promise<void> {
+    try {
+      const { password } = req.body;
+      if (!password || password.length < 6) {
+        res.status(400).json({ success: false, error: '管理员密码长度不能少于 6 位' });
+        return;
+      }
+      const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress;
+      const userAgent = req.headers['user-agent'];
+
+      const result = await authService.initAdminPassword(password, ip, userAgent);
+      res.json({
+        success: true,
+        data: result,
+        message: '管理员密码初始化成功，已自动登录',
+      });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message || '初始化密码失败' });
+    }
+  }
+
   async login(req: Request, res: Response): Promise<void> {
     try {
       const { username, password } = req.body;
@@ -17,7 +47,11 @@ export class AuthController {
       const result = await authService.login(username, password, ip, userAgent);
       res.json({ success: true, data: result });
     } catch (err: any) {
-      res.status(401).json({ success: false, error: err.message || '登录验证失败' });
+      res.status(err.needsInit ? 400 : 401).json({
+        success: false,
+        error: err.message || '登录验证失败',
+        needsInit: Boolean(err.needsInit),
+      });
     }
   }
 
@@ -26,14 +60,13 @@ export class AuthController {
       res.status(401).json({ success: false, error: '未认证' });
       return;
     }
-    const isDefaultPassword = verifyPassword('admin123', req.user.passwordHash);
     res.json({
       success: true,
       data: {
         id: req.user.id,
         username: req.user.username,
         createdAt: req.user.createdAt,
-        isDefaultPassword,
+        isDefaultPassword: false,
       },
     });
   }

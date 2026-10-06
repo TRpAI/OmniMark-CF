@@ -268,14 +268,7 @@ async function runDatabaseRepair(env) {
     }
   } catch (e) {}
 
-  // 5. 确保默认管理员账户存在
-  const userCountRow = await db.prepare('SELECT COUNT(*) as count FROM users').first();
-  if (!userCountRow || Number(userCountRow.count) === 0) {
-    const freshHash = await hashPassword('admin123');
-    await db.prepare(
-      'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, datetime("now"))'
-    ).bind('usr-admin-default', 'admin', freshHash).run();
-  }
+  // 5. 管理员账号保持未初始化状态，强制首次登入时由用户自主设置专属高强度密码
 
   // 6. 确保基础站点设置存在
   const settingsRow = await db.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
@@ -559,6 +552,88 @@ export default {
       // -------------------------------------------------------------
       // 2. 身份认证与用户接口 (/auth/*)
       // -------------------------------------------------------------
+      // 获取认证初始化状态（判断是否需要首次强制初始化管理员密码）
+      if (path === '/auth/status' && method === 'GET') {
+        let user = null;
+        if (env.DB) {
+          user = await env.DB.prepare('SELECT * FROM users ORDER BY createdAt ASC LIMIT 1').first();
+        }
+        if (!user) {
+          return success({ initialized: false, needsInit: true });
+        }
+        const isDefault = await verifyPassword('admin123', user.passwordHash);
+        if (isDefault) {
+          return success({ initialized: false, needsInit: true });
+        }
+        return success({ initialized: true, needsInit: false });
+      }
+
+      // 首次登入强制初始化管理员密码
+      if (path === '/auth/init' && method === 'POST') {
+        if (!checkRateLimit(clientIp, 10, 60000)) {
+          return error('操作过于频繁，请稍后再试', 429);
+        }
+        if (!env.DB) return error('数据库未连接', 500);
+
+        const body = await request.json().catch(() => ({}));
+        const password = body.password;
+        if (!password || String(password).trim().length < 6) {
+          return error('管理员密码长度不能少于 6 位', 400);
+        }
+
+        const user = await env.DB.prepare('SELECT * FROM users ORDER BY createdAt ASC LIMIT 1').first();
+        if (user) {
+          const isDefault = await verifyPassword('admin123', user.passwordHash);
+          if (!isDefault) {
+            return error('管理员密码已完成初始化，请直接登录', 400);
+          }
+        }
+
+        const newHash = await hashPassword(String(password).trim());
+        const now = new Date().toISOString();
+        const userId = user ? user.id : 'usr-admin-default';
+
+        if (user) {
+          await env.DB.prepare('UPDATE users SET passwordHash = ?, username = ? WHERE id = ?')
+            .bind(newHash, 'admin', user.id)
+            .run();
+        } else {
+          await env.DB.prepare(
+            'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, ?)'
+          )
+            .bind(userId, 'admin', newHash, now)
+            .run();
+        }
+
+        try {
+          await env.DB.prepare("INSERT OR REPLACE INTO settings (key, value) VALUES ('admin_initialized', '1')").run();
+        } catch {}
+
+        // 生成 Session
+        const tokenBytes = new Uint8Array(32);
+        crypto.getRandomValues(tokenBytes);
+        const token = Array.from(tokenBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+        const tokenHash = await sha256(token);
+
+        const sessionId = generateId('sess');
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+        await env.DB.prepare(
+          'INSERT INTO sessions (id, userId, tokenHash, expiresAt, createdAt) VALUES (?, ?, ?, ?, ?)'
+        )
+          .bind(sessionId, userId, tokenHash, expiresAt, now)
+          .run();
+
+        return json({
+          success: true,
+          data: {
+            token,
+            user: { id: userId, username: 'admin' },
+          },
+          message: '管理员密码初始化成功，已自动登录',
+        });
+      }
+
       // 登录 (单用户模式：防暴力破解限制 5次/分钟)
       if (path === '/auth/login' && method === 'POST') {
         if (!checkRateLimit(clientIp, 5, 60000)) {
@@ -571,32 +646,28 @@ export default {
           return error('请输入管理密码', 400);
         }
 
-        // 获取主管理员账户（默认 admin 或首个账号）
-        let user = await env.DB.prepare('SELECT * FROM users ORDER BY createdAt ASC LIMIT 1').first();
-
-        // 如果数据库尚未初始化账号，自动补全首个主账号
+        // 获取主管理员账户
+        const user = await env.DB.prepare('SELECT * FROM users ORDER BY createdAt ASC LIMIT 1').first();
         if (!user) {
-          const freshHash = await hashPassword('admin123');
-          const userId = 'usr-admin-default';
-          await env.DB.prepare(
-            'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, ?)'
-          )
-            .bind(userId, 'admin', freshHash, new Date().toISOString())
-            .run();
+          return json({
+            success: false,
+            error: '系统尚未初始化管理员密码，请先完成首次密码初始化',
+            needsInit: true,
+          }, 400);
+        }
 
-          user = { id: userId, username: 'admin', passwordHash: freshHash };
+        const isDefault = await verifyPassword('admin123', user.passwordHash);
+        if (isDefault) {
+          return json({
+            success: false,
+            error: '系统尚未初始化管理员密码，请先完成首次密码初始化',
+            needsInit: true,
+          }, 400);
         }
 
         // 校验密码
-        let isValid = await verifyPassword(password, user.passwordHash);
-
-        // 如果默认 admin123 首次初始化，或验证通过后自动升级 Hash 为 210,000 次 OWASP 标准
-        if (isValid) {
-          const updatedHash = await hashPassword(password);
-          await env.DB.prepare('UPDATE users SET passwordHash = ? WHERE id = ?')
-            .bind(updatedHash, user.id)
-            .run();
-        } else {
+        const isValid = await verifyPassword(password, user.passwordHash);
+        if (!isValid) {
           return error('管理密码错误，请重新输入', 401);
         }
 
@@ -626,12 +697,10 @@ export default {
       if (path === '/auth/me' && method === 'GET') {
         const session = await authenticate();
         if (!session) return error('未登录或凭证已失效', 401);
-        const user = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(session.userId).first();
-        const isDefaultPassword = user ? await verifyPassword('admin123', user.passwordHash) : false;
         return success({
           id: session.userId,
           username: session.username,
-          isDefaultPassword,
+          isDefaultPassword: false,
         });
       }
 

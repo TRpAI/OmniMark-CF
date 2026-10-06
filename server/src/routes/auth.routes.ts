@@ -6,6 +6,12 @@ import { rateLimiter } from '../middleware/rateLimit.middleware';
 const router = Router();
 
 // Public auth routes
+router.get('/status', (req, res) => authController.status(req, res));
+router.post(
+  '/init',
+  rateLimiter({ windowMs: 60 * 1000, max: 10, message: '初始化操作过于频繁，请稍后再试' }),
+  (req, res) => authController.init(req, res)
+);
 router.post(
   '/login',
   rateLimiter({ windowMs: 60 * 1000, max: 5, message: '登录尝试过于频繁，请 1 分钟后再试' }),

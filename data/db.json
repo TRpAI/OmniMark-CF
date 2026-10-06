@@ -1,54 +1,6 @@
 {
-  "users": [
-    {
-      "id": "usr-admin-1",
-      "username": "admin",
-      "passwordHash": "4200fefad41205de545a7bc00eeff666:a10bd0ad7a4fc770d20f008d7ac335068986c52bc5c39bb70dda8766b8d6e617a92aff29c69108fb0f9d1d99cbde0ab199a5d898794ef78d3b280806193bb039",
-      "createdAt": "2025-01-01T00:00:00.000Z"
-    }
-  ],
-  "sessions": [
-    {
-      "id": "sess-66d02818-24d4-413c-9e04-3955101ad3db",
-      "userId": "usr-admin-1",
-      "tokenHash": "dc00b75e981956bf8756ed368b4df0981e8cebacd27a9cac8f231321f2a103f8",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T00:22:46.703Z",
-      "createdAt": "2026-10-03T00:22:46.703Z"
-    },
-    {
-      "id": "sess-e66662a5-2e6d-4982-96df-539475adc1d9",
-      "userId": "usr-admin-1",
-      "tokenHash": "e26a5edeac8536d6c9c2b504a39dd7a52962054ca744af2d33160055ef67646c",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T00:22:54.968Z",
-      "createdAt": "2026-10-03T00:22:54.969Z"
-    },
-    {
-      "id": "sess-1d861b16-fa2f-4ae4-b973-90d5bf3e6dd0",
-      "userId": "usr-admin-1",
-      "tokenHash": "ba93fef42f456c1edffa4dabafef4f51c8af9996450d351ac9fc581e001c0343",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-02T09:11:40.067Z",
-      "createdAt": "2026-10-03T09:11:40.068Z"
-    },
-    {
-      "id": "sess-e34ed19e-3c9a-4d23-b97d-37e8a09a2a72",
-      "userId": "usr-admin-1",
-      "tokenHash": "7929c32204d30d2198471402badbaaf99177a08ed14d5253d95f0fdd66f14a31",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-03T04:29:13.950Z",
-      "createdAt": "2026-10-04T04:29:13.951Z"
-    },
-    {
-      "id": "sess-e1be7a17-6c70-402a-a384-4c4d396b368b",
-      "userId": "usr-admin-1",
-      "tokenHash": "212cb95d74fcaa947c26e8e6ecf9ff79e6c00e66c9dfcaf6b98c5ca7153e8813",
-      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
-      "expiresAt": "2026-11-03T04:44:36.748Z",
-      "createdAt": "2026-10-04T04:44:36.749Z"
-    }
-  ],
+  "users": [],
+  "sessions": [],
   "categories": [
     {
       "id": "cat-featured",

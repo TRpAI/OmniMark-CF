@@ -94,7 +94,5 @@ INSERT OR IGNORE INTO categories (id, name, icon, sortOrder, isPrivate, createdA
 INSERT OR IGNORE INTO custom_pages (id, title, slug, icon, content, isPrivate, sortOrder, createdAt, updatedAt) VALUES
 ('page-about', '关于本站', 'about', 'Info', '# 关于 OmniMark 导航\n\n欢迎使用 OmniMark 现代化极简书签与网址导航中心。\n\n- **极致性能**：极简高响应架构\n- **安全隐私**：分类与书签支持公开/私密隔离\n- **多端同步**：支持 Microsoft OneDrive 云备份与 D1 边缘同步', 0, 1, datetime('now'), datetime('now'));
 
--- Initial Default Admin (Passcode: admin123)
-INSERT OR IGNORE INTO users (id, username, passwordHash, createdAt) VALUES
-('usr-admin-1', 'admin', 'a1b2c3d4e5f60718:609363b91c3bf694ecfa56d640e0d0ca4bb99f9d98ed6762767eaee9d73ec7c7dfdacf0b9715a4776fc0ed4497232d01bd1d0d5c697222247a5b4fa207ab0fe4', datetime('now'));
+-- Users table left uninitialized for mandatory first-login password setup
 
