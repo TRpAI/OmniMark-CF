@@ -1,2 +1,2 @@
-# Cloudflare Pages SPA rewrite rule
-/*  /index.html  200
+# Cloudflare Pages automatically handles SPA routing for index.html at root.
+# Custom redirects can be added below if needed:
