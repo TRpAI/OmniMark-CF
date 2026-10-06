@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Pin, ChevronDown, ChevronUp, ChevronRight, Lock } from 'lucide-react';
 import { BookmarkCard } from './BookmarkCard';
-import { PinnedBookmarkCard } from './PinnedBookmarkCard';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { EmptyState } from '../../../components/EmptyState';
 import { renderCategoryIcon } from '../../../utils/iconMap';
@@ -119,10 +118,10 @@ export const BookmarkGrid: React.FC = () => {
               ({pinnedBookmarks.length})
             </span>
           </div>
-          {/* Quick-Launch Grid: 移动端 2 列舒适胶囊网格 (宽松透气) */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4">
+          {/* 常用置顶网格：与其它分类卡片样式完全保持一致 */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
             {pinnedBookmarks.map((bm) => (
-              <PinnedBookmarkCard key={`pinned-${bm.id}`} bookmark={bm} />
+              <BookmarkCard key={`pinned-${bm.id}`} bookmark={bm} />
             ))}
           </div>
         </section>
