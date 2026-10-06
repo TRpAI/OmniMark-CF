@@ -132,12 +132,13 @@ function sBool(v, def = 0) { if (v === undefined || v === null) return def; retu
 
 // 辅助函数：D1 数据库自动建表与自愈一致性修复
 async function runDatabaseRepair(env) {
-  if (!env || !env.DB) {
-    throw new Error('未检测到 D1 数据库绑定，请在 Cloudflare Worker 设置中将 D1 变量名绑定为 "DB"');
+  const db = env?.DB || env?.database || env?.DATABASE || env?.d1 || env?.D1 || env?.omnimark_db || env?.DB_BINDING;
+  if (!db) {
+    throw new Error('未检测到 Cloudflare D1 数据库绑定。请前往 Cloudflare 控制台 -> Pages 项目 -> 设置 (Settings) -> 函数 (Functions) -> 添加 D1 数据库绑定（变量名称填 "DB"，选择你的 D1 数据库）');
   }
 
   // 1. 确保核心表结构存在
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       username TEXT NOT NULL UNIQUE,
@@ -146,7 +147,7 @@ async function runDatabaseRepair(env) {
     )
   `).run();
 
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS sessions (
       id TEXT PRIMARY KEY,
       userId TEXT NOT NULL,
@@ -158,7 +159,7 @@ async function runDatabaseRepair(env) {
     )
   `).run();
 
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -169,7 +170,7 @@ async function runDatabaseRepair(env) {
     )
   `).run();
 
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS bookmarks (
       id TEXT PRIMARY KEY,
       categoryId TEXT NOT NULL,
@@ -190,14 +191,14 @@ async function runDatabaseRepair(env) {
     )
   `).run();
 
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     )
   `).run();
 
-  await env.DB.prepare(`
+  await db.prepare(`
     CREATE TABLE IF NOT EXISTS custom_pages (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -222,15 +223,15 @@ async function runDatabaseRepair(env) {
   ];
   for (const sql of alterColumns) {
     try {
-      await env.DB.prepare(sql).run();
+      await db.prepare(sql).run();
     } catch {}
   }
 
   // 3. 检查是否有分类，如无则插入默认精选分类
-  const catCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM categories').first();
+  const catCountRow = await db.prepare('SELECT COUNT(*) as count FROM categories').first();
   let defaultCatId = 'cat-featured';
   if (!catCountRow || Number(catCountRow.count) === 0) {
-    await env.DB.prepare(`
+    await db.prepare(`
       INSERT INTO categories (id, name, icon, sortOrder, isPrivate, createdAt) VALUES
       ('cat-featured', '精选常用', 'Sparkles', 1, 0, datetime('now')),
       ('cat-dev', '开发编程', 'Code', 2, 0, datetime('now')),
@@ -238,14 +239,14 @@ async function runDatabaseRepair(env) {
       ('cat-tools', '效率工具', 'Wrench', 4, 0, datetime('now'))
     `).run();
   } else {
-    const firstCat = await env.DB.prepare('SELECT id FROM categories ORDER BY sortOrder ASC LIMIT 1').first();
+    const firstCat = await db.prepare('SELECT id FROM categories ORDER BY sortOrder ASC LIMIT 1').first();
     if (firstCat) defaultCatId = firstCat.id;
   }
 
   // 4. 修复孤立书签（检查 categoryId 不在 categories 中的书签并重定向到有效分类）
   let fixedBookmarks = 0;
   try {
-    const orphanBookmarks = await env.DB.prepare(`
+    const orphanBookmarks = await db.prepare(`
       SELECT b.id FROM bookmarks b
       LEFT JOIN categories c ON b.categoryId = c.id
       WHERE c.id IS NULL
@@ -253,23 +254,23 @@ async function runDatabaseRepair(env) {
 
     if (orphanBookmarks?.results && orphanBookmarks.results.length > 0) {
       for (const ob of orphanBookmarks.results) {
-        await env.DB.prepare('UPDATE bookmarks SET categoryId = ? WHERE id = ?').bind(sStr(defaultCatId), sStr(ob.id)).run();
+        await db.prepare('UPDATE bookmarks SET categoryId = ? WHERE id = ?').bind(sStr(defaultCatId), sStr(ob.id)).run();
         fixedBookmarks++;
       }
     }
   } catch (e) {}
 
   // 5. 确保默认管理员账户存在
-  const userCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM users').first();
+  const userCountRow = await db.prepare('SELECT COUNT(*) as count FROM users').first();
   if (!userCountRow || Number(userCountRow.count) === 0) {
     const freshHash = await hashPassword('admin123');
-    await env.DB.prepare(
+    await db.prepare(
       'INSERT INTO users (id, username, passwordHash, createdAt) VALUES (?, ?, ?, datetime("now"))'
     ).bind('usr-admin-default', 'admin', freshHash).run();
   }
 
   // 6. 确保基础站点设置存在
-  const settingsRow = await env.DB.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
+  const settingsRow = await db.prepare("SELECT value FROM settings WHERE key = 'site_config'").first();
   if (!settingsRow) {
     const defaultSettings = {
       title: 'OmniMark 导航',
@@ -291,29 +292,30 @@ async function runDatabaseRepair(env) {
       ],
       defaultSearchEngine: 'google',
     };
-    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('site_config', ?)").bind(JSON.stringify(defaultSettings)).run();
+    await db.prepare("INSERT INTO settings (key, value) VALUES ('site_config', ?)").bind(JSON.stringify(defaultSettings)).run();
   }
 
   // 7. 确保默认关于页面存在
-  const pagesCountRow = await env.DB.prepare('SELECT COUNT(*) as count FROM custom_pages').first();
+  const pagesCountRow = await db.prepare('SELECT COUNT(*) as count FROM custom_pages').first();
   if (!pagesCountRow || Number(pagesCountRow.count) === 0) {
-    await env.DB.prepare(`
+    await db.prepare(`
       INSERT INTO custom_pages (id, title, slug, icon, content, isPrivate, sortOrder, createdAt, updatedAt)
       VALUES ('page-about', '关于本站', 'about', 'Info', '# 关于 OmniMark 导航\\n\\n欢迎使用 OmniMark 现代化极简书签与网址导航中心。\\n\\n- **极致性能**：极简高响应架构\\n- **安全隐私**：分类与书签支持公开/私密隔离\\n- **多端同步**：支持 Microsoft OneDrive 云备份与 D1 边缘同步', 0, 1, datetime('now'), datetime('now'))
     `).run();
   }
 
   // 8. 清除 KV 缓存
-  if (env.CACHE_KV) {
+  const cacheKv = env.CACHE_KV || env.cache_kv || env.KV || env.kv || env.CACHE;
+  if (cacheKv) {
     await Promise.all([
-      env.CACHE_KV.delete('cache:categories:all'),
-      env.CACHE_KV.delete('cache:bookmarks:all:'),
+      cacheKv.delete('cache:categories:all'),
+      cacheKv.delete('cache:bookmarks:all:'),
     ]).catch(() => {});
   }
 
   const [finalCats, finalBms] = await Promise.all([
-    env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
-    env.DB.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
+    db.prepare('SELECT COUNT(*) as count FROM categories').first(),
+    db.prepare('SELECT COUNT(*) as count FROM bookmarks').first(),
   ]);
 
   return {
@@ -375,6 +377,10 @@ export default {
       path = '/health';
     }
 
+    // 自动兼容多命名 D1 与 KV 绑定变量
+    env.DB = env.DB || env.database || env.DATABASE || env.d1 || env.D1 || env.omnimark_db || env.DB_BINDING;
+    env.CACHE_KV = env.CACHE_KV || env.cache_kv || env.KV || env.kv || env.CACHE;
+
     // 统一 JSON 响应助手
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), { status, headers: corsHeaders });
@@ -395,6 +401,7 @@ export default {
 
     // 鉴权解析助手
     const authenticate = async () => {
+      if (!env.DB) return null;
       const authHeader = request.headers.get('Authorization') || request.headers.get('x-auth-token') || '';
       const token = authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
       if (!token) return null;
@@ -414,6 +421,19 @@ export default {
       // 1. 服务探活与存储一致性检查接口
       // -------------------------------------------------------------
       if (path === '/health' && (method === 'GET' || method === 'HEAD')) {
+        if (!env.DB) {
+          return json({
+            status: 'degraded',
+            service: 'OmniMark Cloudflare Edge Worker',
+            runtime: 'Cloudflare Workers (D1 + KV)',
+            version: '2.0.0',
+            timestamp: new Date().toISOString(),
+            storage: {
+              status: 'error',
+              message: '未检测到 D1 数据库绑定。请前往 Cloudflare 控制台 -> Pages 项目 -> 设置 (Settings) -> 函数 (Functions) -> 添加 D1 数据库绑定（变量名称填 "DB"，选择你的 D1 数据库）',
+            },
+          }, 200);
+        }
         try {
           const [catCountRow, bmCountRow] = await Promise.all([
             env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),

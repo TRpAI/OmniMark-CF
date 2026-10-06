@@ -11,6 +11,9 @@ import {
   Info,
   Server,
   Wrench,
+  Database,
+  ExternalLink,
+  RotateCcw,
 } from 'lucide-react';
 import { authApi } from '../../../api/auth.api';
 import { useAuthStore } from '../../../stores/auth.store';
@@ -226,8 +229,14 @@ export const UserManager: React.FC = () => {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
                   <span className="text-zinc-500 dark:text-zinc-400">服务状态</span>
-                  <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  <span className={`font-semibold ${healthData.status === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-500'}`}>
                     {healthData.status === 'ok' ? '正常运行中' : '服务降级'}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
+                  <span className="text-zinc-500 dark:text-zinc-400">当前接口节点</span>
+                  <span className="font-mono text-zinc-800 dark:text-zinc-200 truncate max-w-[150px]" title={apiClient.getBaseUrl()}>
+                    {apiClient.getBaseUrl() || '/api'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-zinc-100 dark:border-zinc-800">
@@ -251,20 +260,57 @@ export const UserManager: React.FC = () => {
                   </div>
                 )}
                 {healthData.storage?.status !== 'healthy' && (
-                  <div className="pt-2 space-y-1.5">
+                  <div className="pt-2 space-y-2">
                     {healthData.storage?.message && (
-                      <p className="text-[11px] text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2 rounded-lg leading-relaxed">
-                        {healthData.storage.message}
-                      </p>
+                      <div className="p-2.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200/80 dark:border-red-900/60 text-[11px] text-red-600 dark:text-red-300 space-y-1">
+                        <div className="font-bold flex items-center gap-1">
+                          <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                          <span>异常诊断提示：</span>
+                        </div>
+                        <p className="leading-relaxed">{healthData.storage.message}</p>
+                      </div>
                     )}
-                    <button
-                      onClick={handleRepairStorage}
-                      disabled={isRepairing}
-                      className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <Wrench className={`w-3.5 h-3.5 ${isRepairing ? 'animate-spin' : ''}`} />
-                      <span>{isRepairing ? '正在自愈修复中...' : '一键执行存储自愈修复'}</span>
-                    </button>
+
+                    {/* Cloudflare D1 配置指引卡片 */}
+                    <div className="p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-900/50 text-[11px] text-indigo-900 dark:text-indigo-200 space-y-1.5">
+                      <div className="font-bold flex items-center gap-1 text-indigo-700 dark:text-indigo-300">
+                        <Database className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>Cloudflare D1 绑定步骤：</span>
+                      </div>
+                      <ol className="list-decimal list-inside space-y-0.5 text-indigo-800 dark:text-indigo-300/90 pl-1 leading-normal">
+                        <li>登录 Cloudflare Dashboard ➔ 打开你的 Pages 项目</li>
+                        <li>点击 <strong>设置 (Settings)</strong> ➔ <strong>函数 (Functions)</strong></li>
+                        <li>找到 <strong>D1 数据库绑定</strong> ➔ 点击添加：变量名称严格填 <strong>DB</strong>，选择你的数据库</li>
+                      </ol>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleRepairStorage}
+                        disabled={isRepairing}
+                        className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                      >
+                        <Wrench className={`w-3.5 h-3.5 ${isRepairing ? 'animate-spin' : ''}`} />
+                        <span>{isRepairing ? '正在自愈修复中...' : '一键执行存储自愈'}</span>
+                      </button>
+
+                      {apiClient.getBaseUrl() !== '/api' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            apiClient.setBaseUrl('/api');
+                            fetchHealth();
+                            showToast('已重置接口节点为默认 /api', 'info');
+                          }}
+                          className="py-2 px-2.5 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors cursor-pointer flex items-center gap-1"
+                          title="重置为默认本地 /api 节点"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>重置</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

@@ -232,9 +232,25 @@ export default {
       path = '/health';
     }
 
+    // 自动兼容多命名 D1 与 KV 绑定变量
+    env.DB = (env as any).DB || (env as any).database || (env as any).DATABASE || (env as any).d1 || (env as any).D1 || (env as any).omnimark_db || (env as any).DB_BINDING;
+    env.CACHE_KV = (env as any).CACHE_KV || (env as any).cache_kv || (env as any).KV || (env as any).kv || (env as any).CACHE;
+
     try {
       // 1. Health check (with auto-repair on uninitialized DB)
       if (path === '/health' && (method === 'GET' || method === 'HEAD')) {
+        if (!env.DB) {
+          return new Response(JSON.stringify({
+            status: 'degraded',
+            service: 'OmniMark Cloudflare Edge Worker',
+            runtime: 'Cloudflare Workers (D1 + KV)',
+            version: '2.0.0',
+            storage: {
+              status: 'error',
+              message: '未检测到 D1 数据库绑定。请前往 Cloudflare 控制台 -> Pages 项目 -> 设置 (Settings) -> 函数 (Functions) -> 添加 D1 数据库绑定（变量名称严格填 "DB"，选择你的 D1 数据库）',
+            },
+          }), { headers: corsHeaders });
+        }
         try {
           const [catCountRow, bmCountRow]: any = await Promise.all([
             env.DB.prepare('SELECT COUNT(*) as count FROM categories').first(),
