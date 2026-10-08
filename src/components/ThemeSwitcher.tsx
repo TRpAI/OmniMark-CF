@@ -52,7 +52,7 @@ export const ThemeSwitcher: React.FC<ThemeSwitcherProps> = ({ className = '', sh
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title={`切换主题模式 (当前: ${mode === 'auto' ? '自动跟随系统' : mode === 'dark' ? '暗黑模式' : '明亮模式'})`}
-        className="inline-flex items-center justify-center gap-1.5 p-2 sm:px-2.5 sm:py-2 rounded-xl bg-zinc-100/90 dark:bg-zinc-800/90 hover:bg-zinc-200/90 dark:hover:bg-zinc-700/90 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xs transition-all cursor-pointer select-none"
+        className="inline-flex items-center justify-center gap-1.5 p-2 sm:px-2.5 sm:py-2 rounded-full bg-zinc-100/90 dark:bg-zinc-800/90 hover:bg-zinc-200/90 dark:hover:bg-zinc-700/90 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60 shadow-2xs transition-all cursor-pointer select-none"
         aria-label="选择色彩主题"
         aria-expanded={isOpen}
       >

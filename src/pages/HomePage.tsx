@@ -13,8 +13,8 @@ export const HomePage: React.FC = () => {
   const { settings, isLoading, activePageId } = useBookmarkStore();
 
   return (
-    <div className="min-h-screen flex flex-col justify-between">
-      <main className="pb-16 sm:pb-20">
+    <div className="min-h-screen flex flex-col justify-between overflow-x-hidden w-full max-w-full">
+      <main className="pb-16 sm:pb-20 w-full max-w-full">
         {/* Optional Announcement Banner */}
         {settings.announcement && (
           <div className="w-full bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 py-2 px-4 text-center">

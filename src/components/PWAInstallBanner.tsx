@@ -24,14 +24,14 @@ export const PWAInstallNavbarButton: React.FC = () => {
     <button
       onClick={openInstallGuide}
       title="安装到手机/电脑桌面，支持独立运行与秒开"
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-xl bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs hover:shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer group"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-semibold rounded-full bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-indigo-950/40 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/60 shadow-2xs hover:shadow-sm hover:border-indigo-300 dark:hover:border-indigo-700 active:scale-[0.98] transition-all cursor-pointer group shrink-0"
     >
-      <Download className="w-4 h-4 text-indigo-600 dark:text-indigo-400 group-hover:-translate-y-0.5 transition-transform" />
+      <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400 group-hover:-translate-y-0.5 transition-transform shrink-0" />
       <span className="hidden sm:inline">安装到桌面</span>
-      <span className="sm:hidden">安装App</span>
-      <span className="flex h-2 w-2 relative">
+      <span className="sm:hidden text-xs">App</span>
+      <span className="flex h-1.5 w-1.5 sm:h-2 sm:w-2 relative shrink-0">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500" />
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 sm:h-2 sm:w-2 bg-indigo-500" />
       </span>
     </button>
   );

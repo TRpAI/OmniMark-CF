@@ -27,17 +27,17 @@ export const SearchBar: React.FC = () => {
 
   return (
     <div className="w-full max-w-3xl mx-auto mb-3.5 sm:mb-6 px-3 sm:px-4">
-      {/* Search Engine Switcher Tabs */}
-      <div className="flex items-center justify-center gap-1 sm:gap-2 mb-2 sm:mb-2.5 overflow-x-auto py-0.5 sm:py-1 scrollbar-none">
+      {/* Search Engine Switcher Tabs (Equal Width Capsule Pills) */}
+      <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 mb-2 sm:mb-2.5 py-0.5 sm:py-1 w-full max-w-full">
         {engines.map((engine) => {
           const isActive = engine.id === currentEngine?.id;
           return (
             <button
               key={engine.id}
               onClick={() => setSelectedEngine(engine.id)}
-              className={`px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap cursor-pointer ${
+              className={`min-w-[62px] sm:min-w-[76px] text-center px-2.5 sm:px-3.5 py-1 text-xs sm:text-sm font-medium rounded-full transition-all whitespace-nowrap cursor-pointer select-none ${
                 isActive
-                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm'
+                  ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm font-semibold'
                   : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800'
               }`}
             >
