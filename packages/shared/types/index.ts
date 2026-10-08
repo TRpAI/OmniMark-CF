@@ -95,7 +95,7 @@ export interface SiteSettings {
   aiProvider?: AiProviderType;          // 'gemini' | 'openai' | 'deepseek' | 'anthropic' | 'custom'
   aiApiKey?: string;                    // API Key / Token
   aiBaseUrl?: string;                   // 自定义 Base URL (例如 https://api.openai.com/v1, https://api.deepseek.com/v1, 自建 OneAPI/NewAPI/Ollama)
-  aiModel?: string;                     // 当前选中的模型名称 (例如 gemini-2.5-flash, gpt-4o-mini, deepseek-chat, claude-3-5-haiku 等)
+  aiModel?: string;                     // 当前选中的模型名称 (例如 gemini-3.5-flash, gpt-4o-mini, deepseek-chat, claude-3-5-haiku 等)
   aiCustomModelName?: string;           // 自定义模型名称
   aiCustomModels?: string[];            // 从上游获取到的或用户自定义保存的模型列表
 }

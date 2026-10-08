@@ -8,12 +8,14 @@ import { PWAInstallBottomBanner } from './components/PWAInstallBanner';
 import { useAuthStore } from './stores/auth.store';
 import { useBookmarkStore } from './stores/bookmark.store';
 import { useUiStore } from './stores/ui.store';
+import { useThemeStore } from './stores/theme.store';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function App() {
   const { checkAuth } = useAuthStore();
   const { loadInitialData } = useBookmarkStore();
   const { currentView, toasts, removeToast } = useUiStore();
+  const { resolvedTheme } = useThemeStore();
 
   useEffect(() => {
     checkAuth();

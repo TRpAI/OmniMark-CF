@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   aiProvider: 'gemini',
   aiApiKey: '',
   aiBaseUrl: 'https://generativelanguage.googleapis.com',
-  aiModel: 'gemini-2.5-flash',
+  aiModel: 'gemini-3.5-flash',
   aiCustomModelName: '',
   aiCustomModels: [],
 };

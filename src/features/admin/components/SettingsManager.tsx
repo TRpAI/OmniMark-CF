@@ -22,9 +22,13 @@ import {
   Cpu,
   Wand2,
   ChevronDown,
+  Sun,
+  Moon,
+  Laptop,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
+import { useThemeStore } from '../../../stores/theme.store';
 import { SearchEngine, AiProviderType } from '../../../../packages/shared/types';
 import { DEFAULT_AI_PROVIDER_MODELS, DEFAULT_AI_BASE_URLS } from '../../../../packages/shared/constants';
 import { apiClient } from '../../../api/client';
@@ -83,6 +87,7 @@ const AI_PROVIDERS: Array<{
 export const SettingsManager: React.FC = () => {
   const { settings, updateSettings, loadInitialData, bookmarks } = useBookmarkStore();
   const { showToast, setAdminTab } = useUiStore();
+  const { mode: themeMode, setTheme: setThemeMode } = useThemeStore();
 
   const [apiUrl, setApiUrl] = useState(apiClient.getBaseUrl());
   const [formData, setFormData] = useState({
@@ -184,7 +189,7 @@ export const SettingsManager: React.FC = () => {
 
     const defaultList = DEFAULT_AI_PROVIDER_MODELS[newProvider] || DEFAULT_AI_PROVIDER_MODELS.openai;
     setAvailableModels(defaultList);
-    setAiModel(defaultList[0] || 'gemini-2.5-flash');
+    setAiModel(defaultList[0] || 'gemini-3.5-flash');
     setTestResult(null);
   };
 
@@ -560,12 +565,63 @@ export const SettingsManager: React.FC = () => {
         </div>
 
         {/* ========================================================= */}
-        {/* 2. 基础信息配置 */}
+        {/* 2. 基础信息与界面外观配置 */}
         {/* ========================================================= */}
-        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
-          <h4 className="text-sm font-bold text-zinc-900 dark:text-white pb-2 border-b border-zinc-100 dark:border-zinc-800">
-            基础信息配置
+        <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-5">
+          <h4 className="text-sm font-bold text-zinc-900 dark:text-white pb-2 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+            <span>基础信息与界面外观</span>
+            <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">支持明亮、暗黑与系统自动适配</span>
           </h4>
+
+          {/* 色彩主题模式选择 */}
+          <div>
+            <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-2">
+              色彩显示模式 (全局生效)
+            </label>
+            <div className="grid grid-cols-3 gap-2.5 max-w-lg">
+              <button
+                type="button"
+                onClick={() => setThemeMode('light')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border text-xs font-semibold transition-all cursor-pointer ${
+                  themeMode === 'light'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 shadow-xs ring-2 ring-indigo-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                }`}
+              >
+                <Sun className="w-4 h-4 text-amber-500" />
+                <span>明亮模式</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setThemeMode('dark')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border text-xs font-semibold transition-all cursor-pointer ${
+                  themeMode === 'dark'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 shadow-xs ring-2 ring-indigo-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                }`}
+              >
+                <Moon className="w-4 h-4 text-indigo-400" />
+                <span>暗黑模式</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setThemeMode('auto')}
+                className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-2xl border text-xs font-semibold transition-all cursor-pointer ${
+                  themeMode === 'auto'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 shadow-xs ring-2 ring-indigo-500/20'
+                    : 'border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-700'
+                }`}
+              >
+                <Laptop className="w-4 h-4 text-sky-500" />
+                <span>自动切换</span>
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1.5">
+              设置为「自动切换」时，网站将实时跟随用户的操作系统或浏览器深色模式偏好自适应变换。
+            </p>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

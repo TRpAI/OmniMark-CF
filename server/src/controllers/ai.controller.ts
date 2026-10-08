@@ -109,7 +109,7 @@ export class AiController {
       const result = await aiService.testConnection(provider, apiKey, baseUrl, model);
       res.json({ success: true, data: result });
     } catch (err: any) {
-      res.status(400).json({ success: false, error: err.message || '模型连接测试失败' });
+      res.status(400).json({ success: false, error: err.message || '模型连接测试失败，请检查 API Token 与接口地址。' });
     }
   }
 }

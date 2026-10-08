@@ -5,6 +5,7 @@ import { useUiStore } from '../stores/ui.store';
 import { useBookmarkStore } from '../stores/bookmark.store';
 import { BrandLogo } from './BrandLogo';
 import { PWAInstallNavbarButton } from './PWAInstallBanner';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, logout } = useAuthStore();
@@ -60,6 +61,9 @@ export const Navbar: React.FC = () => {
 
           {/* PWA Install Button */}
           <PWAInstallNavbarButton />
+
+          {/* Theme Switcher: 明亮 / 暗黑 / 自动切换 */}
+          <ThemeSwitcher />
 
           {/* Single Unified Admin/Home Toggle Button */}
           <button
