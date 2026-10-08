@@ -31,16 +31,16 @@
   "accessToken": "simulated_azure_graph_bearer_token",
   "refreshToken": "simulated_azure_offline_access_token",
   "tokenExpiresAt": 1793578966923,
-  "lastBackupTime": "2026-10-03T00:22:54.978Z",
+  "lastBackupTime": "2026-10-08T02:08:55.562Z",
   "lastBackupStatus": "success",
-  "lastBackupSummary": "增量校验通过 (数据与云端一致，已刷新状态快照 omnimark-incremental-2026-10-03T00-22-54.json)",
+  "lastBackupSummary": "增量校验通过 (数据与云端一致，已刷新状态快照 omnimark-incremental-2026-10-08T02-08-55.json)",
   "lastBackupDetails": {
     "added": 0,
     "updated": 0,
     "deleted": 0,
     "total": 11,
-    "fileName": "omnimark-incremental-2026-10-03T00-22-54.json",
-    "fileSize": "9.3 KB",
-    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-03T00-22-54.json 并更新云端索引)"
+    "fileName": "omnimark-incremental-2026-10-08T02-08-55.json",
+    "fileSize": "9.4 KB",
+    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-08T02-08-55.json 并更新云端索引)"
   }
 }

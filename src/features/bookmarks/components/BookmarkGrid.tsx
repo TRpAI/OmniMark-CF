@@ -104,19 +104,21 @@ export const BookmarkGrid: React.FC = () => {
 
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
-      {/* 1. 常用置顶栏 (Quick Launch Bar: Icon + Title) */}
+      {/* 1. 常用置顶栏 (与其它分类卡片与区域样式完全保持一致) */}
       {showPinnedSection && (
-        <section className="p-3.5 sm:p-5 rounded-2xl bg-gradient-to-r from-indigo-50/60 via-purple-50/30 to-sky-50/60 dark:from-indigo-950/20 dark:via-purple-950/10 dark:to-sky-950/20 border border-indigo-100/80 dark:border-indigo-900/30">
-          <div className="flex items-center gap-2 mb-3 sm:mb-4">
-            <div className="p-1 rounded-md bg-indigo-600 text-white shadow-xs">
-              <Pin className="w-3.5 h-3.5" />
+        <section id="category-pinned" className="scroll-mt-24">
+          <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4 pb-2.5 border-b border-zinc-200/60 dark:border-zinc-800/60">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 shrink-0">
+                <Pin className="w-4 h-4 fill-amber-500/20" />
+              </div>
+              <h2 className="text-sm sm:text-base font-bold text-zinc-900 dark:text-white truncate">
+                常用置顶
+              </h2>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-mono shrink-0">
+                {pinnedBookmarks.length}
+              </span>
             </div>
-            <h2 className="text-sm font-bold text-zinc-900 dark:text-white tracking-tight">
-              常用置顶
-            </h2>
-            <span className="text-xs text-zinc-400 dark:text-zinc-500">
-              ({pinnedBookmarks.length})
-            </span>
           </div>
           {/* 常用置顶网格：与其它分类卡片样式完全保持一致 */}
           <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">

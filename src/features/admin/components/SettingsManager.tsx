@@ -102,16 +102,28 @@ export const SettingsManager: React.FC = () => {
   });
 
   // AI 智能设置状态
-  const [aiProvider, setAiProvider] = useState<AiProviderType>(settings.aiProvider || 'gemini');
+  const initialProvider = settings.aiProvider || 'gemini';
+  const getInitialModel = (prov: string, currentModel?: string) => {
+    if (prov === 'gemini') {
+      if (!currentModel || currentModel.includes('2.5-flash') || currentModel.includes('2.0-flash') || currentModel.includes('1.5-flash')) {
+        return 'gemini-3.5-flash';
+      }
+      return currentModel;
+    }
+    if (prov === 'deepseek') return currentModel || 'deepseek-chat';
+    return currentModel || 'gpt-4o-mini';
+  };
+
+  const [aiProvider, setAiProvider] = useState<AiProviderType>(initialProvider);
   const [aiApiKey, setAiApiKey] = useState<string>(settings.aiApiKey || '');
-  const [aiBaseUrl, setAiBaseUrl] = useState<string>(settings.aiBaseUrl || DEFAULT_AI_BASE_URLS.gemini);
-  const [aiModel, setAiModel] = useState<string>(settings.aiModel || 'gemini-2.5-flash');
+  const [aiBaseUrl, setAiBaseUrl] = useState<string>(settings.aiBaseUrl || DEFAULT_AI_BASE_URLS[initialProvider] || '');
+  const [aiModel, setAiModel] = useState<string>(getInitialModel(initialProvider, settings.aiModel));
   const [aiCustomModelName, setAiCustomModelName] = useState<string>(settings.aiCustomModelName || '');
   const [isCustomModel, setIsCustomModel] = useState<boolean>(Boolean(settings.aiCustomModelName));
   const [availableModels, setAvailableModels] = useState<string[]>(
     settings.aiCustomModels && settings.aiCustomModels.length > 0
       ? settings.aiCustomModels
-      : DEFAULT_AI_PROVIDER_MODELS[settings.aiProvider || 'gemini'] || DEFAULT_AI_PROVIDER_MODELS.gemini
+      : DEFAULT_AI_PROVIDER_MODELS[initialProvider] || DEFAULT_AI_PROVIDER_MODELS.gemini
   );
 
   const [showApiKey, setShowApiKey] = useState(false);
@@ -153,7 +165,7 @@ export const SettingsManager: React.FC = () => {
     setAiProvider(currentProvider);
     setAiApiKey(settings.aiApiKey || '');
     setAiBaseUrl(settings.aiBaseUrl || DEFAULT_AI_BASE_URLS[currentProvider] || '');
-    setAiModel(settings.aiModel || (currentProvider === 'deepseek' ? 'deepseek-chat' : 'gemini-2.5-flash'));
+    setAiModel(getInitialModel(currentProvider, settings.aiModel));
     setAiCustomModelName(settings.aiCustomModelName || '');
     setIsCustomModel(Boolean(settings.aiCustomModelName));
     setAvailableModels(

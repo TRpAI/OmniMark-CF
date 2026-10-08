@@ -1,5 +1,20 @@
 [
   {
+    "id": "bk-1791425335750",
+    "timestamp": "2026-10-08T02:08:55.562Z",
+    "type": "incremental",
+    "trigger": "schedule",
+    "bookmarksCount": 11,
+    "addedBookmarks": 0,
+    "updatedBookmarks": 0,
+    "deletedBookmarks": 0,
+    "fileSize": "9.4 KB",
+    "fileName": "omnimark-incremental-2026-10-08T02-08-55.json",
+    "status": "success",
+    "message": "增量校验通过 (数据与云端一致，已刷新状态快照 omnimark-incremental-2026-10-08T02-08-55.json)",
+    "graphStatus": "云端同步成功 (已保存至 OneDrive 指定目录 //Apps/OmniMark/Backups/omnimark-incremental-2026-10-08T02-08-55.json 并更新云端索引)"
+  },
+  {
     "id": "bk-1790986975125",
     "timestamp": "2026-10-03T00:22:54.978Z",
     "type": "incremental",

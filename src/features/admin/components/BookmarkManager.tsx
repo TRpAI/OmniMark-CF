@@ -280,17 +280,16 @@ export const BookmarkManager: React.FC = () => {
     <div className="space-y-6">
       {/* Header controls */}
       <div className="flex flex-col gap-3">
-        {/* 移动端窄屏：搜索框独占一行；桌面端：整洁并列排布 */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          {/* Search Bar - 移动端全宽独立一行 */}
-          <div className="relative w-full sm:w-72">
+        {/* 1. 移动端窄屏：搜索框为独立一行 */}
+        <div className="w-full">
+          <div className="relative w-full">
             <Search className="absolute left-3.5 top-2.5 w-4 h-4 text-zinc-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索书签或标签..."
-              className="w-full pl-9.5 pr-8 py-2 text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
+              placeholder="搜索书签标题、网址或标签..."
+              className="w-full pl-9.5 pr-8 py-2 text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-800 dark:text-zinc-200 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 shadow-2xs"
             />
             {search && (
               <button
@@ -302,48 +301,48 @@ export const BookmarkManager: React.FC = () => {
               </button>
             )}
           </div>
+        </div>
 
-          {/* Filters & Add Bookmark Button */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
-            {/* 两个筛选器在移动端平分一行 */}
-            <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
-              {/* Category Filter */}
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none shadow-2xs"
-              >
-                <option value="all">全部分类 ({bookmarks.length})</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({bookmarks.filter((b) => b.categoryId === c.id).length})
-                  </option>
-                ))}
-              </select>
-
-              {/* Privacy & Feature Filter */}
-              <select
-                value={privacyFilter}
-                onChange={(e) => setPrivacyFilter(e.target.value as any)}
-                className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none shadow-2xs"
-              >
-                <option value="all">全部书签 ({bookmarks.length})</option>
-                <option value="pinned">常用置顶 ({bookmarks.filter((b) => b.isPinned).length})</option>
-                <option value="feed">快讯精选 ({bookmarks.filter((b) => b.inFeed).length})</option>
-                <option value="public">仅公开书签</option>
-                <option value="private">仅私密书签 (🔒)</option>
-              </select>
-            </div>
-
-            {/* Add Bookmark Button */}
-            <button
-              onClick={openAddModal}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-sm font-medium shadow-sm transition-colors cursor-pointer shrink-0"
+        {/* 2. 筛选器与添加按钮操作栏：移动端自适应布局 */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+          {/* 筛选器在移动端平分一行 */}
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
+            {/* Category Filter */}
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none shadow-2xs truncate"
             >
-              <Plus className="w-4 h-4" />
-              <span>添加新书签</span>
-            </button>
+              <option value="all">全部分类 ({bookmarks.length})</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({bookmarks.filter((b) => b.categoryId === c.id).length})
+                </option>
+              ))}
+            </select>
+
+            {/* Privacy & Feature Filter */}
+            <select
+              value={privacyFilter}
+              onChange={(e) => setPrivacyFilter(e.target.value as any)}
+              className="w-full sm:w-auto px-3 py-2 text-xs sm:text-sm rounded-xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 focus:outline-none shadow-2xs truncate"
+            >
+              <option value="all">全部书签 ({bookmarks.length})</option>
+              <option value="pinned">常用置顶 ({bookmarks.filter((b) => b.isPinned).length})</option>
+              <option value="feed">快讯精选 ({bookmarks.filter((b) => b.inFeed).length})</option>
+              <option value="public">仅公开书签</option>
+              <option value="private">仅私密书签 (🔒)</option>
+            </select>
           </div>
+
+          {/* Add Bookmark Button */}
+          <button
+            onClick={openAddModal}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>添加新书签</span>
+          </button>
         </div>
       </div>
 

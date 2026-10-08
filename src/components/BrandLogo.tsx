@@ -18,78 +18,78 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({ className = '', size = 'md
       className={`relative flex items-center justify-center shrink-0 rounded-xl overflow-hidden transition-transform duration-300 select-none ${sizeMap[size]} ${className}`}
     >
       <svg
-        viewBox="0 0 48 48"
+        viewBox="0 0 512 512"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="w-full h-full drop-shadow-sm"
       >
         <defs>
-          {/* Main Gradient */}
-          <linearGradient id="omni-grad-1" x1="4" y1="4" x2="44" y2="44" gradientUnits="userSpaceOnUse">
+          <linearGradient id="bl-bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0a0f1d" />
+            <stop offset="50%" stopColor="#111827" />
+            <stop offset="100%" stopColor="#090d16" />
+          </linearGradient>
+
+          <linearGradient id="bl-cyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#38bdf8" />
-            <stop offset="50%" stopColor="#6366f1" />
+            <stop offset="45%" stopColor="#6366f1" />
             <stop offset="100%" stopColor="#a855f7" />
           </linearGradient>
 
-          {/* Ribbon Accent Gradient */}
-          <linearGradient id="omni-grad-2" x1="40" y1="8" x2="8" y2="40" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#f43f5e" />
-            <stop offset="60%" stopColor="#8b5cf6" />
+          <linearGradient id="bl-ribbonGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#ec4899" />
+            <stop offset="50%" stopColor="#8b5cf6" />
             <stop offset="100%" stopColor="#06b6d4" />
           </linearGradient>
 
-          {/* Inner Glow */}
-          <radialGradient id="omni-glow" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-          </radialGradient>
+          <linearGradient id="bl-rimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.6" />
+            <stop offset="50%" stopColor="#6366f1" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="#a855f7" stopOpacity="0.5" />
+          </linearGradient>
         </defs>
 
-        {/* Outer Hex-Squircle Shield Backing */}
+        {/* Base Squircle */}
         <rect
-          x="2"
-          y="2"
-          width="44"
-          height="44"
-          rx="12"
-          fill="url(#omni-grad-1)"
+          x="32"
+          y="32"
+          width="448"
+          height="448"
+          rx="104"
+          fill="url(#bl-bgGrad)"
+          stroke="url(#bl-rimGrad)"
+          strokeWidth="6"
         />
 
-        {/* Subtle Dark Overlay for Depth */}
-        <rect
-          x="3"
-          y="3"
-          width="42"
-          height="42"
-          rx="11"
-          fill="#09090b"
-          fillOpacity="0.12"
-        />
-
-        {/* Futuristic Interlocking "O" & Bookmark Core Ribbon */}
-        {/* Left arc */}
+        {/* Ribbon Body */}
         <path
-          d="M24 10C16.268 10 10 16.268 10 24C10 31.732 16.268 38 24 38C27.5 38 30.68 36.72 33.12 34.6L27.8 29.28C26.7 30.05 25.4 30.5 24 30.5C20.41 30.5 17.5 27.59 17.5 24C17.5 20.41 20.41 17.5 24 17.5C27.59 17.5 30.5 20.41 30.5 24H38C38 16.268 31.732 10 24 10Z"
-          fill="white"
-          fillOpacity="0.95"
+          d="M 176 112 C 176 100, 186 92, 198 92 L 314 92 C 326 92, 336 100, 336 112 L 336 392 L 256 324 L 176 392 Z"
+          fill="url(#bl-cyberGrad)"
         />
 
-        {/* Dynamic Chevron Bookmark Crest cutting into O */}
+        {/* Inset Facet */}
         <path
-          d="M26 12L38 24L38 12L26 12Z"
-          fill="url(#omni-grad-2)"
+          d="M 256 120 L 320 120 L 320 366 L 256 312 Z"
+          fill="url(#bl-ribbonGrad)"
+          opacity="0.8"
         />
 
-        {/* Precision North-East Launch Notch */}
-        <polygon
-          points="24,24 38,24 38,38 31,31 31,24"
-          fill="white"
-          fillOpacity="0.8"
+        {/* Dark Cutout */}
+        <path
+          d="M 216 132 L 296 132 L 296 290 L 256 256 L 216 290 Z"
+          fill="#0a0f1d"
+          opacity="0.92"
         />
 
-        {/* Glowing Center Core Dot */}
-        <circle cx="24" cy="24" r="3" fill="#ffffff" />
-        <circle cx="24" cy="24" r="5" fill="url(#omni-glow)" />
+        {/* Glowing Compass Star */}
+        <g transform="translate(256, 212)">
+          <path
+            d="M 0 -54 Q 0 0 -54 0 Q 0 0 0 54 Q 0 0 54 0 Q 0 0 0 -54 Z"
+            fill="#ffffff"
+          />
+          <circle cx="0" cy="0" r="10" fill="#fef08a" />
+          <circle cx="0" cy="0" r="5" fill="#ffffff" />
+        </g>
       </svg>
     </div>
   );
