@@ -21,6 +21,33 @@ function safeParseJson(str, fallback = []) {
   }
 }
 
+// 辅助函数：安全常数时间字符串比对（防时序侧信道攻击）
+function timingSafeEqualStr(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
+}
+
+// 辅助函数：SSRF 内网与私有地址安全校验
+function isSafeUrl(urlString) {
+  try {
+    const parsed = new URL(urlString);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    const hostname = parsed.hostname.toLowerCase();
+    const blocked = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '169.254.169.254', 'metadata.google.internal', 'metadata'];
+    if (blocked.includes(hostname)) return false;
+    if (/^(10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|127\.|0\.)/.test(hostname)) return false;
+    if (hostname.endsWith('.internal') || hostname.endsWith('.local')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // 辅助函数：PBKDF2 密码校验 (使用 Cloudflare Workers 平台原生支持的上限 100,000 次 PBKDF2-HMAC-SHA512 强迭代)
 async function verifyPassword(password, storedHash) {
   try {
@@ -41,7 +68,7 @@ async function verifyPassword(password, storedHash) {
       ['deriveBits']
     );
 
-    // 1. 优先校验 100,000 次 (Cloudflare Workers 平台与 OWASP 推荐标准)
+    // 1. 优先校验 100,000 次 (Cloudflare Workers 平台与 OWASP 推荐标准，采用常数时间比较)
     const utf8Salt = enc.encode(salt);
     const bits100k = await crypto.subtle.deriveBits(
       { name: 'PBKDF2', salt: utf8Salt, iterations: 100000, hash: 'SHA-512' },
@@ -51,7 +78,7 @@ async function verifyPassword(password, storedHash) {
     const hex100k = Array.from(new Uint8Array(bits100k))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    if (hex100k === originalHex) return true;
+    if (timingSafeEqualStr(hex100k, originalHex)) return true;
 
     // 2. 兼容 Hex 字节盐 (100,000 次)
     if (salt.length % 2 === 0) {
@@ -64,7 +91,7 @@ async function verifyPassword(password, storedHash) {
       const hexRaw100k = Array.from(new Uint8Array(bitsHex100k))
         .map(b => b.toString(16).padStart(2, '0'))
         .join('');
-      if (hexRaw100k === originalHex) return true;
+      if (timingSafeEqualStr(hexRaw100k, originalHex)) return true;
     }
 
     // 3. 平滑升级兼容：尝试旧的 10,000 次迭代 (校验通过后供上层升级)
@@ -76,7 +103,7 @@ async function verifyPassword(password, storedHash) {
     const hex10k = Array.from(new Uint8Array(bits10k))
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
-    if (hex10k === originalHex) return true;
+    if (timingSafeEqualStr(hex10k, originalHex)) return true;
 
     return false;
   } catch (err) {
@@ -390,6 +417,8 @@ export default {
       'X-Frame-Options': 'SAMEORIGIN',
       'X-XSS-Protection': '1; mode=block',
       'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), browsing-topics=()',
+      'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',
     };
 
     // 路径标准化：去除末尾斜杠，并统一去除 /api 前缀（同时兼容 /api/... 和 /...）
@@ -2102,7 +2131,7 @@ export default {
         let aiProvider = override?.provider || 'gemini';
         let aiApiKey = override?.apiKey || env.GEMINI_API_KEY || (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || '';
         let aiBaseUrl = override?.baseUrl || '';
-        let aiModel = override?.model || 'gemini-2.5-flash';
+        let aiModel = override?.model || 'gemini-3.5-flash';
 
         if (!override && env.DB) {
           try {
@@ -2120,8 +2149,12 @@ export default {
 
         if (aiProvider === 'gemini') {
           if (!aiApiKey) return null;
+          let effectiveModel = (aiModel || 'gemini-3.5-flash').replace(/^models\//, '');
+          if (!effectiveModel || effectiveModel.includes('2.5-flash') || effectiveModel.includes('2.0-flash') || effectiveModel.includes('1.5-flash')) {
+            effectiveModel = 'gemini-3.5-flash';
+          }
           const host = (aiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-          const endpoint = `${host}/v1beta/models/${aiModel || 'gemini-2.5-flash'}:generateContent?key=${aiApiKey}`;
+          const endpoint = `${host}/v1beta/models/${effectiveModel}:generateContent?key=${aiApiKey}`;
           try {
             const geminiRes = await fetch(endpoint, {
               method: 'POST',
@@ -2175,7 +2208,7 @@ export default {
 
         if (provider === 'gemini') {
           if (!effectiveKey) {
-            return success(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+            return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-pro']);
           }
           const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
           const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
@@ -2192,7 +2225,7 @@ export default {
               }
             }
           } catch {}
-          return success(['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro']);
+          return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-pro']);
         }
 
         const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
@@ -2234,13 +2267,18 @@ export default {
         return error('模型连接测试失败，请检查 API Token 与接口地址。', 400);
       }
 
-      // 9.3 智能提取站点简介与信息
+      // 9.3 智能提取站点简介与信息 (带 SSRF 防御拦截)
       if (path === '/ai/site-info' && method === 'POST') {
         const { url: targetUrl, existingCategories = [] } = await request.json().catch(() => ({}));
         if (!targetUrl) return error('请提供目标网址', 400);
 
         let normalized = targetUrl.trim();
         if (!/^https?:\/\//i.test(normalized)) normalized = 'https://' + normalized;
+
+        // SSRF 防御校验：严禁解析内网与非法地址
+        if (!isSafeUrl(normalized)) {
+          return error('安全拦截：不允许解析内网、私有或非法地址', 400);
+        }
 
         let parsedHost = '';
         try { parsedHost = new URL(normalized).hostname; } catch {}
