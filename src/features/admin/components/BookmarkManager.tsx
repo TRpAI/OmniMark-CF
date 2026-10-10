@@ -20,6 +20,11 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  CheckSquare,
+  Square,
+  Copy,
+  Download,
+  Unlock,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -34,6 +39,8 @@ export const BookmarkManager: React.FC = () => {
     createBookmark,
     updateBookmark,
     deleteBookmark,
+    batchDeleteBookmarks,
+    batchUpdateBookmarks,
     reorderBookmarks,
   } = useBookmarkStore();
   const { showToast } = useUiStore();
@@ -47,6 +54,13 @@ export const BookmarkManager: React.FC = () => {
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [deleteConfirmBm, setDeleteConfirmBm] = useState<Bookmark | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Batch selection states
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [isBatchCategoryModalOpen, setIsBatchCategoryModalOpen] = useState(false);
+  const [batchTargetCategory, setBatchTargetCategory] = useState<string>('');
+  const [isBatchDeleteModalOpen, setIsBatchDeleteModalOpen] = useState(false);
+  const [isBatchProcessing, setIsBatchProcessing] = useState(false);
 
   // Form states
   const [formData, setFormData] = useState({
@@ -276,6 +290,136 @@ export const BookmarkManager: React.FC = () => {
       return (a.id || '').localeCompare(b.id || '');
     });
 
+  const isAllSelected = filtered.length > 0 && filtered.every((b) => selectedIds.includes(b.id));
+  const isPartiallySelected = filtered.some((b) => selectedIds.includes(b.id)) && !isAllSelected;
+
+  const toggleSelect = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filtered.map((b) => b.id));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds([]);
+  };
+
+  const handleBatchDelete = () => {
+    if (selectedIds.length === 0) return;
+    setIsBatchDeleteModalOpen(true);
+  };
+
+  const confirmBatchDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsBatchProcessing(true);
+    try {
+      const count = selectedIds.length;
+      await batchDeleteBookmarks(selectedIds);
+      showToast(`成功删除 ${count} 个书签`, 'success');
+      setSelectedIds([]);
+      setIsBatchDeleteModalOpen(false);
+    } catch (err: any) {
+      showToast(err.message || '批量删除失败', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const handleBatchChangeCategory = () => {
+    if (selectedIds.length === 0) return;
+    setBatchTargetCategory(categories[0]?.id || '');
+    setIsBatchCategoryModalOpen(true);
+  };
+
+  const confirmBatchChangeCategory = async () => {
+    if (selectedIds.length === 0 || !batchTargetCategory) return;
+    setIsBatchProcessing(true);
+    try {
+      const targetCat = categories.find((c) => c.id === batchTargetCategory);
+      await batchUpdateBookmarks(selectedIds, { categoryId: batchTargetCategory });
+      showToast(`成功将 ${selectedIds.length} 个书签移入分类「${targetCat?.name || ''}」`, 'success');
+      setSelectedIds([]);
+      setIsBatchCategoryModalOpen(false);
+    } catch (err: any) {
+      showToast(err.message || '批量修改分类失败', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const handleBatchTogglePin = async (isPinned: boolean) => {
+    if (selectedIds.length === 0) return;
+    setIsBatchProcessing(true);
+    try {
+      await batchUpdateBookmarks(selectedIds, { isPinned });
+      showToast(`已成功将 ${selectedIds.length} 个书签批量${isPinned ? '设为置顶' : '取消置顶'}`, 'success');
+      setSelectedIds([]);
+    } catch (err: any) {
+      showToast(err.message || '批量置顶操作失败', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const handleBatchToggleFeed = async (inFeed: boolean) => {
+    if (selectedIds.length === 0) return;
+    setIsBatchProcessing(true);
+    try {
+      await batchUpdateBookmarks(selectedIds, { inFeed });
+      showToast(`已成功将 ${selectedIds.length} 个书签批量${inFeed ? '加入快讯' : '移出快讯'}`, 'success');
+      setSelectedIds([]);
+    } catch (err: any) {
+      showToast(err.message || '批量快讯操作失败', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const handleBatchTogglePrivate = async (isPrivate: boolean) => {
+    if (selectedIds.length === 0) return;
+    setIsBatchProcessing(true);
+    try {
+      await batchUpdateBookmarks(selectedIds, { isPrivate });
+      showToast(`已将 ${selectedIds.length} 个书签批量设为${isPrivate ? '私密 (🔒)' : '公开'}`, 'success');
+      setSelectedIds([]);
+    } catch (err: any) {
+      showToast(err.message || '批量权限调整失败', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
+  const handleBatchExportJson = () => {
+    const selectedList = bookmarks.filter((b) => selectedIds.includes(b.id));
+    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(selectedList, null, 2));
+    const downloadAnchor = document.createElement('a');
+    downloadAnchor.setAttribute('href', dataStr);
+    downloadAnchor.setAttribute('download', `bookmarks_batch_export_${new Date().toISOString().slice(0, 10)}.json`);
+    document.body.appendChild(downloadAnchor);
+    downloadAnchor.click();
+    downloadAnchor.remove();
+    showToast(`已导出 ${selectedList.length} 个书签的 JSON 数据`, 'success');
+  };
+
+  const handleBatchCopyUrls = async () => {
+    const selectedList = bookmarks.filter((b) => selectedIds.includes(b.id));
+    const text = selectedList.map((b) => `${b.title} - ${b.url}`).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      showToast(`已复制 ${selectedList.length} 个书签链接至剪贴板`, 'success');
+    } catch {
+      showToast('复制失败，请检查剪贴板权限', 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header controls */}
@@ -303,7 +447,7 @@ export const BookmarkManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. 筛选器与添加按钮操作栏：移动端自适应布局 */}
+        {/* 2. 筛选器与添加/批量操作按钮栏 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* 筛选器在移动端平分一行 */}
           <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
@@ -335,16 +479,185 @@ export const BookmarkManager: React.FC = () => {
             </select>
           </div>
 
-          {/* Add Bookmark Button */}
-          <button
-            onClick={openAddModal}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>添加新书签</span>
-          </button>
+          {/* Action Buttons: 批量操作与添加新书签 */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {filtered.length > 0 && (
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className={`w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer shrink-0 border ${
+                  selectedIds.length > 0
+                    ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800'
+                    : 'bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                }`}
+                title="批量操作选中项"
+              >
+                <CheckSquare className="w-4 h-4" />
+                <span>{selectedIds.length > 0 ? `已选 (${selectedIds.length})` : '批量操作'}</span>
+              </button>
+            )}
+
+            <button
+              onClick={openAddModal}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>添加新书签</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* 批量操作胶囊工具栏：当有选中项时吸附展示 */}
+      {selectedIds.length > 0 && (
+        <div className="sticky top-18 z-30 p-2.5 sm:p-3 rounded-2xl bg-zinc-900/95 dark:bg-zinc-850/95 backdrop-blur-md text-white shadow-xl border border-zinc-700/60 transition-all animate-in fade-in slide-in-from-top-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            {/* Left: 计数与取消 */}
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold">
+                <Check className="w-3.5 h-3.5" />
+                <span>已选 {selectedIds.length} 项</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-xs text-zinc-300 hover:text-white px-2 py-1 rounded-lg hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                {isAllSelected ? '取消全选' : '全选所有'}
+              </button>
+            </div>
+
+            {/* Right: 胶囊操作按钮组 */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* 更改分类 */}
+              <button
+                type="button"
+                onClick={handleBatchChangeCategory}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer"
+                title="批量更改分类"
+              >
+                <Folder className="w-3.5 h-3.5 text-indigo-400" />
+                <span>分类</span>
+              </button>
+
+              {/* 设为置顶 */}
+              <button
+                type="button"
+                onClick={() => handleBatchTogglePin(true)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-amber-300 transition-colors cursor-pointer"
+                title="批量设为置顶"
+              >
+                <Pin className="w-3.5 h-3.5 text-amber-400" />
+                <span>置顶</span>
+              </button>
+
+              {/* 取消置顶 */}
+              <button
+                type="button"
+                onClick={() => handleBatchTogglePin(false)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors cursor-pointer"
+                title="批量取消置顶"
+              >
+                <span>取消置顶</span>
+              </button>
+
+              {/* 设为快讯 */}
+              <button
+                type="button"
+                onClick={() => handleBatchToggleFeed(true)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-amber-300 transition-colors cursor-pointer"
+                title="批量收录进快讯"
+              >
+                <Rss className="w-3.5 h-3.5 text-amber-400" />
+                <span>入快讯</span>
+              </button>
+
+              {/* 移出快讯 */}
+              <button
+                type="button"
+                onClick={() => handleBatchToggleFeed(false)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-400 transition-colors cursor-pointer"
+                title="批量移出快讯"
+              >
+                <span>出快讯</span>
+              </button>
+
+              {/* 设为私密 */}
+              <button
+                type="button"
+                onClick={() => handleBatchTogglePrivate(true)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-rose-300 transition-colors cursor-pointer"
+                title="批量设为私密"
+              >
+                <Lock className="w-3.5 h-3.5 text-rose-400" />
+                <span>私密</span>
+              </button>
+
+              {/* 设为公开 */}
+              <button
+                type="button"
+                onClick={() => handleBatchTogglePrivate(false)}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-emerald-300 transition-colors cursor-pointer"
+                title="批量设为公开"
+              >
+                <Unlock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>公开</span>
+              </button>
+
+              {/* 复制链接 */}
+              <button
+                type="button"
+                onClick={handleBatchCopyUrls}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer"
+                title="复制选中书签标题与链接"
+              >
+                <Copy className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden sm:inline">复制</span>
+              </button>
+
+              {/* 导出 JSON */}
+              <button
+                type="button"
+                onClick={handleBatchExportJson}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer"
+                title="导出选中项为 JSON"
+              >
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">导出</span>
+              </button>
+
+              {/* 批量删除 */}
+              <button
+                type="button"
+                onClick={handleBatchDelete}
+                disabled={isBatchProcessing}
+                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white transition-colors cursor-pointer"
+                title="批量彻底删除选中书签"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>删除</span>
+              </button>
+
+              {/* 清空选择 */}
+              <button
+                type="button"
+                onClick={handleDeselectAll}
+                className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+                title="清空已选"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bookmarks Display: Mobile Compact Cards (< md) & Desktop Table (>= md) */}
       {/* 1. Mobile Compact Cards */}
@@ -359,11 +672,29 @@ export const BookmarkManager: React.FC = () => {
             return (
               <div
                 key={bm.id}
-                className="p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800/80 shadow-xs space-y-2.5 transition-all"
+                className={`p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border transition-all space-y-2.5 ${
+                  selectedIds.includes(bm.id)
+                    ? 'border-indigo-450 dark:border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/20'
+                    : 'border-zinc-200/80 dark:border-zinc-800/80 shadow-xs'
+                }`}
               >
-                {/* Top Row: Favicon, Rank, Title, Badges, Direct Link */}
+                {/* Top Row: Checkbox, Favicon, Rank, Title, Badges, Direct Link */}
                 <div className="flex items-start justify-between gap-2.5">
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="flex items-start gap-2 min-w-0 flex-1">
+                    {/* Batch Selection Checkbox */}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleSelect(bm.id, e)}
+                      className="p-1 -ml-1 text-zinc-400 hover:text-indigo-600 cursor-pointer shrink-0 mt-0.5"
+                      title={selectedIds.includes(bm.id) ? '取消勾选' : '勾选此项'}
+                    >
+                      {selectedIds.includes(bm.id) ? (
+                        <CheckSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      ) : (
+                        <Square className="w-4 h-4 text-zinc-300 dark:text-zinc-600" />
+                      )}
+                    </button>
+
                     {/* Rank Capsule Badge */}
                     <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 mt-0.5 shadow-2xs" title="排位序号">
                       #{bm.sortOrder || index + 1}
@@ -528,6 +859,18 @@ export const BookmarkManager: React.FC = () => {
           <table className="w-full text-left border-collapse text-sm">
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+                <th className="py-3 px-3 w-10 text-center">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = isPartiallySelected;
+                    }}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    title={isAllSelected ? '取消全选' : '全选所有书签'}
+                  />
+                </th>
                 <th className="py-3 px-3 w-16 text-center">排位</th>
                 <th className="py-3 px-3 w-10 text-center">置顶</th>
                 <th className="py-3 px-3 w-12 text-center">快讯</th>
@@ -541,7 +884,7 @@ export const BookmarkManager: React.FC = () => {
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-zinc-400 text-sm">
+                  <td colSpan={9} className="py-12 text-center text-zinc-400 text-sm">
                     未找到相关书签
                   </td>
                 </tr>
@@ -551,8 +894,20 @@ export const BookmarkManager: React.FC = () => {
                   return (
                     <tr
                       key={bm.id}
-                      className="hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group"
+                      className={`hover:bg-zinc-50/80 dark:hover:bg-zinc-800/40 transition-colors group ${
+                        selectedIds.includes(bm.id) ? 'bg-indigo-50/40 dark:bg-indigo-950/20' : ''
+                      }`}
                     >
+                      {/* Batch Selection Checkbox */}
+                      <td className="py-3.5 px-3 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(bm.id)}
+                          onChange={(e) => toggleSelect(bm.id, e as any)}
+                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                      </td>
+
                       {/* Rank / Sort Order */}
                       <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
@@ -1029,6 +1384,93 @@ export const BookmarkManager: React.FC = () => {
                 className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 {isDeleting ? '正在执行删除...' : '确认永久删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 批量调整分类模态框 */}
+      {isBatchCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-200/50 dark:border-indigo-900/40">
+              <Folder className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">批量调整书签分类</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                即将为选中的 <strong className="text-zinc-800 dark:text-zinc-200">{selectedIds.length}</strong> 个书签统一分配至新分类：
+              </p>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
+                选择目标分类
+              </label>
+              <select
+                value={batchTargetCategory}
+                onChange={(e) => setBatchTargetCategory(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsBatchCategoryModalOpen(false)}
+                disabled={isBatchProcessing}
+                className="px-3.5 py-2 text-xs font-medium rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={isBatchProcessing || !batchTargetCategory}
+                onClick={confirmBatchChangeCategory}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isBatchProcessing ? '正在移动...' : `确认移动 (${selectedIds.length} 项)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 批量删除二次确认模态框 */}
+      {isBatchDeleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/50 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="w-full max-w-sm p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-xl space-y-4">
+            <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center border border-red-200/50 dark:border-red-900/40">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">高风险批量删除二次确认</h3>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 leading-relaxed">
+                确定要彻底删除已勾选的 <strong className="text-rose-600 dark:text-rose-400 font-bold">{selectedIds.length}</strong> 个书签吗？
+                此操作将立即从持久化存储中清除，不可撤销。
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsBatchDeleteModalOpen(false)}
+                disabled={isBatchProcessing}
+                className="px-3.5 py-2 text-xs font-medium rounded-xl text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                disabled={isBatchProcessing}
+                onClick={confirmBatchDelete}
+                className="px-4 py-2 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {isBatchProcessing ? '正在批量删除...' : `确认删除 (${selectedIds.length} 项)`}
               </button>
             </div>
           </div>

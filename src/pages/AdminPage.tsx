@@ -7,7 +7,6 @@ import {
   FileCode2,
   Settings,
   Shield,
-  ExternalLink,
   BookOpen,
   Rss,
   Sparkles,
@@ -143,7 +142,7 @@ export const AdminPage: React.FC = () => {
           <button
             onClick={() => setCurrentView('home')}
             className="p-2 sm:p-2.5 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white rounded-xl sm:rounded-2xl bg-zinc-100 dark:bg-zinc-800/80 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer shrink-0 shadow-xs"
-            title="返回前台主页"
+            title="返回主页"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
@@ -161,14 +160,6 @@ export const AdminPage: React.FC = () => {
             </p>
           </div>
         </div>
-
-        <button
-          onClick={() => setCurrentView('home')}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-xs font-semibold text-zinc-800 dark:text-zinc-200 transition-colors cursor-pointer shadow-xs shrink-0"
-        >
-          <span>前台主页</span>
-          <ExternalLink className="w-3.5 h-3.5" />
-        </button>
       </div>
 
       {/* 2. Mobile Responsive Grid Navigation (移动端窄屏 2 行 4 列紧凑网格，100% 等宽填充，彻底禁止左右滑动或横向晃动) */}

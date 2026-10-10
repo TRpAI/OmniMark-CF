@@ -132,6 +132,20 @@ export class BookmarkService {
     }
   }
 
+  async deleteMany(ids: string[]): Promise<number> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return 0;
+    }
+    return bookmarkRepository.deleteMany(ids);
+  }
+
+  async updateMany(ids: string[], updates: Partial<CreateBookmarkDTO>): Promise<Bookmark[]> {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return [];
+    }
+    return bookmarkRepository.updateMany(ids, updates);
+  }
+
   async recordClick(id: string): Promise<number> {
     return bookmarkRepository.incrementClick(id);
   }

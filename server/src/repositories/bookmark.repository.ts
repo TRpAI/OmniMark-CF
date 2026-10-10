@@ -76,6 +76,37 @@ export class BookmarkRepository {
     return deleted;
   }
 
+  async deleteMany(ids: string[]): Promise<number> {
+    const idSet = new Set(ids);
+    let deletedCount = 0;
+    jsonDb.update((db) => {
+      const initialLen = db.bookmarks.length;
+      db.bookmarks = db.bookmarks.filter((b) => !idSet.has(b.id));
+      deletedCount = initialLen - db.bookmarks.length;
+    });
+    return deletedCount;
+  }
+
+  async updateMany(ids: string[], updates: Partial<Bookmark>): Promise<Bookmark[]> {
+    const idSet = new Set(ids);
+    const updatedList: Bookmark[] = [];
+    jsonDb.update((db) => {
+      db.bookmarks = db.bookmarks.map((b) => {
+        if (idSet.has(b.id)) {
+          const updated = {
+            ...b,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          };
+          updatedList.push(updated);
+          return updated;
+        }
+        return b;
+      });
+    });
+    return updatedList;
+  }
+
   async reorder(items: { id: string; sortOrder: number; categoryId?: string }[]): Promise<void> {
     jsonDb.update((db) => {
       const map = new Map(items.map((i) => [i.id, i]));

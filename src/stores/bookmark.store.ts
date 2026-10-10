@@ -34,6 +34,8 @@ interface BookmarkState {
   createBookmark: (data: Partial<Bookmark>) => Promise<Bookmark>;
   updateBookmark: (id: string, data: Partial<Bookmark>) => Promise<Bookmark>;
   deleteBookmark: (id: string) => Promise<void>;
+  batchDeleteBookmarks: (ids: string[]) => Promise<void>;
+  batchUpdateBookmarks: (ids: string[], updates: Partial<Bookmark>) => Promise<void>;
   reorderBookmarks: (items: { id: string; sortOrder: number; categoryId?: string }[]) => Promise<void>;
 
   // Category actions
@@ -139,6 +141,34 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     set((state) => ({
       bookmarks: state.bookmarks.filter((b) => b.id !== id),
     }));
+    get().loadInitialData();
+  },
+
+  batchDeleteBookmarks: async (ids) => {
+    const idSet = new Set(ids);
+    set((state) => ({
+      bookmarks: state.bookmarks.filter((b) => !idSet.has(b.id)),
+    }));
+    try {
+      await bookmarkApi.batchDelete(ids);
+    } catch (e) {
+      console.warn('Failed to persist batch delete bookmarks:', e);
+    }
+    get().loadInitialData();
+  },
+
+  batchUpdateBookmarks: async (ids, updates) => {
+    const idSet = new Set(ids);
+    set((state) => ({
+      bookmarks: state.bookmarks.map((b) =>
+        idSet.has(b.id) ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b
+      ),
+    }));
+    try {
+      await bookmarkApi.batchUpdate(ids, updates);
+    } catch (e) {
+      console.warn('Failed to persist batch update bookmarks:', e);
+    }
     get().loadInitialData();
   },
 

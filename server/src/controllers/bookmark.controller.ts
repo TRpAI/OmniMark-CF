@@ -63,6 +63,38 @@ export class BookmarkController {
     }
   }
 
+  async batchDelete(req: Request, res: Response): Promise<void> {
+    try {
+      const { ids } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ success: false, error: '请选择要删除的书签' });
+        return;
+      }
+      const count = await bookmarkService.deleteMany(ids);
+      res.json({ success: true, message: `成功删除 ${count} 个书签`, data: { count } });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
+  async batchUpdate(req: Request, res: Response): Promise<void> {
+    try {
+      const { ids, updates } = req.body;
+      if (!Array.isArray(ids) || ids.length === 0) {
+        res.status(400).json({ success: false, error: '请选择要批量更新的书签' });
+        return;
+      }
+      if (!updates || typeof updates !== 'object') {
+        res.status(400).json({ success: false, error: '更新数据格式不正确' });
+        return;
+      }
+      const updatedList = await bookmarkService.updateMany(ids, updates);
+      res.json({ success: true, message: `成功更新 ${updatedList.length} 个书签`, data: updatedList });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message });
+    }
+  }
+
   async recordClick(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;

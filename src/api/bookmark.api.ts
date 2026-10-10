@@ -29,6 +29,12 @@ export const bookmarkApi = {
   reorder: (items: { id: string; sortOrder: number; categoryId?: string }[]) =>
     apiClient.post('/bookmarks/batch/reorder', { items }),
 
+  batchDelete: (ids: string[]) =>
+    apiClient.post<{ count: number }>('/bookmarks/batch/delete', { ids }),
+
+  batchUpdate: (ids: string[], updates: Partial<Bookmark>) =>
+    apiClient.post<Bookmark[]>('/bookmarks/batch/update', { ids, updates }),
+
   getStats: () =>
     apiClient.get<StatsData>('/bookmarks/stats'),
 };

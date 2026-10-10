@@ -11,9 +11,11 @@ router.get('/:id', optionalAuth, (req, res) => bookmarkController.getById(req, r
 router.post('/:id/click', (req, res) => bookmarkController.recordClick(req, res));
 
 // Protected admin routes
+router.post('/batch/reorder', requireAuth, (req, res) => bookmarkController.reorder(req, res));
+router.post('/batch/delete', requireAuth, (req, res) => bookmarkController.batchDelete(req, res));
+router.post('/batch/update', requireAuth, (req, res) => bookmarkController.batchUpdate(req, res));
 router.post('/', requireAuth, (req, res) => bookmarkController.create(req, res));
 router.put('/:id', requireAuth, (req, res) => bookmarkController.update(req, res));
 router.delete('/:id', requireAuth, (req, res) => bookmarkController.delete(req, res));
-router.post('/batch/reorder', requireAuth, (req, res) => bookmarkController.reorder(req, res));
 
 export default router;
