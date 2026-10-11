@@ -46,31 +46,31 @@ const AI_PROVIDERS: Array<{
     id: 'gemini',
     name: 'Google Gemini',
     badge: '官方推荐 / 极速',
-    desc: 'Google 原生大模型，支持 Gemini 2.5 Flash / Pro，分析与提取极快',
+    desc: 'Google 最新 Gemini 3.8 Flash / 3.5 Flash，服务端已内置运行环境密钥，支持免配置一键使用',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com',
     iconBg: 'bg-indigo-500 text-white',
   },
   {
     id: 'deepseek',
     name: 'DeepSeek 深度求索',
-    badge: '高性价比 / 强推理',
-    desc: 'DeepSeek-V3 / DeepSeek-R1 满血版，代码与中文语义理解极佳',
-    defaultBaseUrl: 'https://api.deepseek.com/v1',
+    badge: '高性价比 / 旗舰推理',
+    desc: 'DeepSeek-V3 满血版 / DeepSeek-R1 深度思考，代码与中文逻辑表现强劲',
+    defaultBaseUrl: 'https://api.deepseek.com',
     iconBg: 'bg-blue-600 text-white',
   },
   {
     id: 'openai',
     name: 'OpenAI',
     badge: '全球顶尖',
-    desc: 'GPT-4o, GPT-4o-mini, o1, o3-mini 等全系列行业标杆大模型',
+    desc: 'GPT-4o, GPT-4o-mini, o3-mini, o1 全系列行业标杆模型',
     defaultBaseUrl: 'https://api.openai.com/v1',
     iconBg: 'bg-emerald-600 text-white',
   },
   {
     id: 'anthropic',
     name: 'Anthropic Claude',
-    badge: '卓越语感',
-    desc: 'Claude 3.7 Sonnet, Claude 3.5 Haiku，超强长文本与精细总结',
+    badge: '卓越语感与编程',
+    desc: 'Claude 3.7 Sonnet, Claude 3.5 Haiku，代码精准、结构化分析与深度摘要极佳',
     defaultBaseUrl: 'https://api.anthropic.com/v1',
     iconBg: 'bg-amber-600 text-white',
   },
@@ -78,7 +78,7 @@ const AI_PROVIDERS: Array<{
     id: 'custom',
     name: '自定义 / 兼容 OpenAI 协议',
     badge: '自建 / 聚合中转',
-    desc: '支持 OneAPI, NewAPI, SiliconFlow, Ollama, Moonshot, Qwen 等任何中转或本地服务',
+    desc: '支持 SiliconFlow 硅基流动, OneAPI, NewAPI, Ollama, 通义千问, 智谱等兼容 OpenAI 的节点',
     defaultBaseUrl: 'https://api.openai.com/v1',
     iconBg: 'bg-purple-600 text-white',
   },
@@ -111,7 +111,7 @@ export const SettingsManager: React.FC = () => {
   const getInitialModel = (prov: string, currentModel?: string) => {
     if (prov === 'gemini') {
       if (!currentModel || currentModel.includes('2.5-flash') || currentModel.includes('2.0-flash') || currentModel.includes('1.5-flash')) {
-        return 'gemini-3.5-flash';
+        return 'gemini-3.8-flash';
       }
       return currentModel;
     }
@@ -219,7 +219,17 @@ export const SettingsManager: React.FC = () => {
     setTestResult(null);
     const effectiveModel = isCustomModel ? aiCustomModelName.trim() : aiModel;
     if (isCustomModel && !effectiveModel) {
-      showToast('请输入自定义模型名称后再测试', 'error');
+      const msg = '已勾选启用自定义模型，请输入自定义模型名称（如 deepseek-ai/DeepSeek-V3 或 gpt-4o）后再测试';
+      setTestResult({ success: false, message: msg });
+      showToast('请输入自定义模型名称', 'error');
+      setIsTestingAi(false);
+      return;
+    }
+
+    if (aiProvider !== 'gemini' && !aiApiKey.trim()) {
+      const msg = `请在上方输入 [${aiProvider.toUpperCase()}] 的 API Token / API Key 后再点击测试连通性`;
+      setTestResult({ success: false, message: msg });
+      showToast(msg, 'error');
       setIsTestingAi(false);
       return;
     }
@@ -238,11 +248,12 @@ export const SettingsManager: React.FC = () => {
       });
       showToast('✅ AI 模型连通性测试通过！', 'success');
     } catch (err: any) {
+      const errorMsg = err?.message || '连接失败，请检查 Token 授权与接口地址配置。';
       setTestResult({
         success: false,
-        message: err?.message || '连接失败，请检查 Token 授权与接口地址配置。',
+        message: errorMsg,
       });
-      showToast(err?.message || '测试失败', 'error');
+      showToast(errorMsg, 'error');
     } finally {
       setIsTestingAi(false);
     }
@@ -441,9 +452,48 @@ export const SettingsManager: React.FC = () => {
 
             {/* 1.3 Base URL Input */}
             <div>
-              <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">
-                API 接口基础地址 (Base URL)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
+                  API 接口基础地址 (Base URL)
+                </label>
+                {/* Quick Presets */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAiBaseUrl(DEFAULT_AI_BASE_URLS[aiProvider] || 'https://api.openai.com/v1');
+                      setTestResult(null);
+                    }}
+                    className="text-[10px] text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer font-medium"
+                  >
+                    恢复官方默认
+                  </button>
+                  {aiProvider === 'custom' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAiBaseUrl('https://api.siliconflow.cn/v1');
+                          setTestResult(null);
+                        }}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:underline cursor-pointer"
+                      >
+                        硅基流动
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAiBaseUrl('https://dashscope.aliyuncs.com/compatible-mode/v1');
+                          setTestResult(null);
+                        }}
+                        className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 hover:underline cursor-pointer"
+                      >
+                        通义千问兼容
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
               <input
                 type="text"
                 value={aiBaseUrl}
@@ -457,6 +507,26 @@ export const SettingsManager: React.FC = () => {
               <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
                 支持直连官方接口、反向代理、OneAPI / NewAPI / SiliconFlow / Ollama 等兼容 OpenAI 协议的自定义中转节点。
               </p>
+
+              {aiProvider === 'gemini' && (
+                <div className="mt-2 p-2.5 rounded-xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/60 dark:border-indigo-800/60 text-xs text-indigo-700 dark:text-indigo-300 flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">运行环境内置支持：</span>
+                    <span>服务端已预先注入 Google Gemini 凭据。API Token 可直接留空，点击下方「测试当前模型连通性」即可验证！</span>
+                  </div>
+                </div>
+              )}
+
+              {aiProvider === 'deepseek' && (
+                <div className="mt-2 p-2.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/60 dark:border-blue-800/60 text-xs text-blue-700 dark:text-blue-300 flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-semibold">DeepSeek 配置提示：</span>
+                    <span>官方 Base URL 填 <code className="font-mono bg-blue-100/60 dark:bg-blue-900/60 px-1 py-0.5 rounded">https://api.deepseek.com</code> 即可，Token 请在 DeepSeek 开放平台创建。</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 1.4 Model Selector & Custom Model */}

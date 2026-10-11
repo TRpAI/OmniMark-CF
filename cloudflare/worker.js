@@ -2148,13 +2148,14 @@ export default {
         }
 
         if (aiProvider === 'gemini') {
-          if (!aiApiKey) return null;
-          let effectiveModel = (aiModel || 'gemini-3.5-flash').replace(/^models\//, '');
+          const effectiveKey = aiApiKey || env.GEMINI_API_KEY || '';
+          if (!effectiveKey) return null;
+          let effectiveModel = (aiModel || 'gemini-3.8-flash').replace(/^models\//, '');
           if (!effectiveModel || effectiveModel.includes('2.5-flash') || effectiveModel.includes('2.0-flash') || effectiveModel.includes('1.5-flash')) {
-            effectiveModel = 'gemini-3.5-flash';
+            effectiveModel = 'gemini-3.8-flash';
           }
           const host = (aiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-          const endpoint = `${host}/v1beta/models/${effectiveModel}:generateContent?key=${aiApiKey}`;
+          const endpoint = `${host}/v1beta/models/${effectiveModel}:generateContent?key=${effectiveKey}`;
           try {
             const geminiRes = await fetch(endpoint, {
               method: 'POST',
@@ -2173,9 +2174,15 @@ export default {
         }
 
         // OpenAI / DeepSeek / Anthropic / Custom OpenAI-compatible
-        const defaultBase = aiProvider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
-        const effectiveBase = (aiBaseUrl || defaultBase).replace(/\/+$/, '');
-        const endpoint = `${effectiveBase}/chat/completions`;
+        const defaultBase = aiProvider === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.openai.com/v1';
+        let effectiveBase = (aiBaseUrl || defaultBase).replace(/\/+$/, '');
+        if (effectiveBase && !/^https?:\/\//i.test(effectiveBase)) {
+          effectiveBase = 'https://' + effectiveBase;
+        }
+        effectiveBase = effectiveBase.replace(/\/chat\/completions$/, '');
+        const endpoint = effectiveBase.endsWith('/v1') || effectiveBase.includes('/v1/')
+          ? `${effectiveBase}/chat/completions`
+          : (aiProvider === 'deepseek' ? `${effectiveBase}/chat/completions` : `${effectiveBase}/v1/chat/completions`);
 
         const headers = { 'Content-Type': 'application/json' };
         if (aiApiKey) headers['Authorization'] = `Bearer ${aiApiKey}`;
@@ -2208,7 +2215,7 @@ export default {
 
         if (provider === 'gemini') {
           if (!effectiveKey) {
-            return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-pro']);
+            return success(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite']);
           }
           const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
           const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
@@ -2225,12 +2232,16 @@ export default {
               }
             }
           } catch {}
-          return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-pro']);
+          return success(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite']);
         }
 
-        const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com/v1' : 'https://api.openai.com/v1';
-        const effectiveBase = (baseUrl || defaultBase).replace(/\/+$/, '');
-        const endpoint = `${effectiveBase}/models`;
+        const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.openai.com/v1';
+        let effectiveBase = (baseUrl || defaultBase).replace(/\/+$/, '');
+        if (effectiveBase && !/^https?:\/\//i.test(effectiveBase)) {
+          effectiveBase = 'https://' + effectiveBase;
+        }
+        effectiveBase = effectiveBase.replace(/\/models$/, '');
+        const endpoint = effectiveBase.endsWith('/v1') || effectiveBase.includes('/v1/') ? `${effectiveBase}/models` : `${effectiveBase}/v1/models`;
         try {
           const headers = { 'Content-Type': 'application/json' };
           if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
@@ -2243,7 +2254,7 @@ export default {
             }
           }
         } catch {}
-        return success(provider === 'deepseek' ? ['deepseek-chat', 'deepseek-reasoner'] : ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini']);
+        return success(provider === 'deepseek' ? ['deepseek-chat', 'deepseek-reasoner'] : ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1']);
       }
 
       // 9.2 测试连通性

@@ -11,6 +11,7 @@ interface UiState {
   currentView: 'home' | 'admin';
   isLoginModalOpen: boolean;
   isAiAssistantOpen: boolean;
+  isMobileCategoryDrawerOpen: boolean;
   aiTargetBookmarkId?: string;
   toasts: ToastMessage[];
   adminTab: 'dashboard' | 'bookmarks' | 'feed' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings';
@@ -18,6 +19,8 @@ interface UiState {
   setCurrentView: (view: 'home' | 'admin') => void;
   setLoginModalOpen: (open: boolean) => void;
   setAiAssistantOpen: (open: boolean) => void;
+  setMobileCategoryDrawerOpen: (open: boolean) => void;
+  toggleMobileCategoryDrawer: () => void;
   openAiAssistantWithBookmark: (bookmarkId: string) => void;
   toggleAiAssistant: () => void;
   setAdminTab: (tab: 'dashboard' | 'bookmarks' | 'feed' | 'categories' | 'pages' | 'users' | 'import-export' | 'cloudflare' | 'settings') => void;
@@ -31,6 +34,7 @@ export const useUiStore = create<UiState>((set) => ({
   currentView: initialRoute.view,
   isLoginModalOpen: false,
   isAiAssistantOpen: false,
+  isMobileCategoryDrawerOpen: false,
   toasts: [],
   adminTab: initialRoute.adminTab,
 
@@ -40,6 +44,8 @@ export const useUiStore = create<UiState>((set) => ({
   },
   setLoginModalOpen: (open) => set({ isLoginModalOpen: open }),
   setAiAssistantOpen: (open) => set({ isAiAssistantOpen: open, aiTargetBookmarkId: open ? undefined : undefined }),
+  setMobileCategoryDrawerOpen: (open) => set({ isMobileCategoryDrawerOpen: open }),
+  toggleMobileCategoryDrawer: () => set((s) => ({ isMobileCategoryDrawerOpen: !s.isMobileCategoryDrawerOpen })),
   openAiAssistantWithBookmark: (bookmarkId) => set({ isAiAssistantOpen: true, aiTargetBookmarkId: bookmarkId }),
   toggleAiAssistant: () => set((s) => ({ isAiAssistantOpen: !s.isAiAssistantOpen })),
   setAdminTab: (tab) => {

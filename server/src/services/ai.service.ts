@@ -181,7 +181,7 @@ export class AiService {
     if (provider === 'gemini') {
       const cleanM = (model || '').replace(/^models\//, '');
       if (!cleanM || cleanM.includes('2.5-flash') || cleanM.includes('2.0-flash') || cleanM.includes('1.5-flash')) {
-        model = 'gemini-3.5-flash';
+        model = 'gemini-3.8-flash';
       }
     } else if (provider === 'deepseek') {
       model = model || 'deepseek-chat';
@@ -190,7 +190,7 @@ export class AiService {
     }
 
     if (provider !== 'gemini' && !apiKey) {
-      throw new Error(`请先填入 [${provider.toUpperCase()}] 的 API Token / API Key 后再进行连接测试`);
+      throw new Error(`请先输入 [${provider.toUpperCase()}] 的 API Token / API Key 后再进行连接测试`);
     }
 
     const testPrompt = `请简短回复一句中文：“连接成功，我是 ${model}，随时为您提供全站智能服务！”`;
@@ -203,10 +203,14 @@ export class AiService {
       systemPrompt: '你是一个专业的测试机器人，请准确精练地响应测试。',
     });
 
+    const isUsingBuiltIn = provider === 'gemini' && !apiKeyParam?.trim() && Boolean(process.env.GEMINI_API_KEY);
+
     return {
       success: true,
       model: model || 'default',
-      message: '测试成功！模型连接与授权一切正常。',
+      message: isUsingBuiltIn
+        ? `测试成功！已自动使用系统内置的 Gemini 密钥，[${model}] 响应正常。`
+        : `测试成功！模型 [${model}] 连接与授权一切正常。`,
       sampleResponse: resultText,
     };
   }
@@ -233,7 +237,7 @@ export class AiService {
     if (provider === 'gemini') {
       const cleanM = (model || '').replace(/^models\//, '');
       if (!cleanM || cleanM.includes('2.5-flash') || cleanM.includes('2.0-flash') || cleanM.includes('1.5-flash')) {
-        model = 'gemini-3.5-flash';
+        model = 'gemini-3.8-flash';
       }
     } else if (provider === 'deepseek') {
       model = model || 'deepseek-chat';
@@ -247,16 +251,18 @@ export class AiService {
     if (provider === 'gemini') {
       const effectiveKey = apiKey || process.env.GEMINI_API_KEY || '';
       if (!effectiveKey) {
-        throw new Error('未配置 Gemini API Key，请在后台设置中填写 Token 或在环境配置 GEMINI_API_KEY');
+        throw new Error('未配置 Gemini API Key，请在后台设置中填写 Token 或在环境变量中配置 GEMINI_API_KEY');
       }
 
-      let effectiveModel = (model || 'gemini-3.5-flash').replace(/^models\//, '');
+      let effectiveModel = (model || 'gemini-3.8-flash').replace(/^models\//, '');
       if (effectiveModel.includes('2.5-flash') || effectiveModel.includes('2.0-flash') || effectiveModel.includes('1.5-flash')) {
-        effectiveModel = 'gemini-3.5-flash';
+        effectiveModel = 'gemini-3.8-flash';
       }
+
+      const isGoogleHost = !baseUrl || baseUrl.includes('generativelanguage.googleapis.com');
 
       // 如果未指定特殊 BaseURL，优先使用 GoogleGenAI SDK
-      if (!baseUrl || baseUrl === DEFAULT_AI_BASE_URLS.gemini) {
+      if (isGoogleHost) {
         try {
           const ai = new GoogleGenAI({ apiKey: effectiveKey });
           const res = await ai.models.generateContent({
@@ -270,22 +276,24 @@ export class AiService {
         } catch (err: any) {
           let msg = err?.message || '';
           if (msg.includes('API_KEY_INVALID') || msg.includes('400')) {
-            msg = 'Gemini API Key 无效，请检查填写的 Token';
+            msg = 'Gemini API Key 格式无效，请检查填写的 Token（在 Google AI Studio 申请）';
+          } else if (msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
+            msg = 'Gemini API 拒绝访问，请检查密钥权限或账户状态';
+          } else if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
+            msg = 'Gemini API 请求配额超限 (429 Rate Limit)，请稍后再试';
           } else if (msg.includes('NOT_FOUND') || msg.includes('404')) {
-            if (effectiveModel !== 'gemini-3.5-flash') {
-              try {
-                const aiFallback = new GoogleGenAI({ apiKey: effectiveKey });
-                const retryRes = await aiFallback.models.generateContent({
-                  model: 'gemini-3.5-flash',
-                  contents: userPrompt,
-                  config: { systemInstruction: systemPrompt },
-                });
-                return retryRes.text?.trim() || '';
-              } catch {}
-            }
-            msg = `模型 '${effectiveModel}' 不可用，已自动切换为 gemini-3.5-flash`;
+            try {
+              const aiFallback = new GoogleGenAI({ apiKey: effectiveKey });
+              const retryRes = await aiFallback.models.generateContent({
+                model: 'gemini-3.8-flash',
+                contents: userPrompt,
+                config: { systemInstruction: systemPrompt },
+              });
+              return retryRes.text?.trim() || '';
+            } catch {}
+            msg = `模型 '${effectiveModel}' 不可用，建议选择 gemini-3.8-flash`;
           }
-          throw new Error(msg || 'Gemini 服务调用失败');
+          throw new Error(msg || `Gemini 服务调用失败: ${err.message}`);
         }
       }
 
@@ -349,6 +357,9 @@ export class AiService {
 
     // 3. OpenAI / DeepSeek / Moonshot / SiliconFlow / Ollama / OneAPI / Custom OpenAI-compatible
     let cleanBase = (baseUrl || (provider === 'deepseek' ? DEFAULT_AI_BASE_URLS.deepseek : DEFAULT_AI_BASE_URLS.openai)).trim().replace(/\/+$/, '');
+    if (cleanBase && !/^https?:\/\//i.test(cleanBase)) {
+      cleanBase = 'https://' + cleanBase;
+    }
     cleanBase = cleanBase.replace(/\/chat\/completions$/, '').replace(/\/models$/, '');
     const chatUrl = cleanBase.endsWith('/v1') || cleanBase.includes('/v1/') ? `${cleanBase}/chat/completions` : `${cleanBase}/v1/chat/completions`;
 
