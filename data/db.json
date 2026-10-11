@@ -1,6 +1,23 @@
 {
-  "users": [],
-  "sessions": [],
+  "users": [
+    {
+      "id": "usr-admin-default",
+      "username": "admin",
+      "passwordHash": "ef732b09b2fdf80ab79da9c650518dc0:82a2f1daef4d9611633a46b475d1e7e07434de1730c3251c4b9431b35cb131d5f2bbe585c9e7177d70a1e6af70bce2d9120c08f0ae6da6bd7697feeaff8e13ee",
+      "createdAt": "2026-10-10T14:13:18.155Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess-0b6d212b-7a7d-450a-8567-95f2e7c89dd9",
+      "userId": "usr-admin-default",
+      "tokenHash": "524fe57a678ed8dd788c03563e6920ce053739795fe278aeed64a3371b28a806",
+      "ipHash": "12ca17b49af2289436f303e0166030a21e525d266e209267433801a8fd4071a0",
+      "userAgentHash": "4b2c7fc2a2eeadc588d00c3c8b47cba35cdcaf8445e6ba555ea290331c440907",
+      "expiresAt": "2026-11-09T14:13:18.156Z",
+      "createdAt": "2026-10-10T14:13:18.156Z"
+    }
+  ],
   "categories": [
     {
       "id": "cat-featured",
@@ -62,7 +79,7 @@
       "sortOrder": 1,
       "isPinned": true,
       "createdAt": "2025-01-01T00:00:00.000Z",
-      "updatedAt": "2025-01-01T00:00:00.000Z"
+      "updatedAt": "2026-10-10T14:13:39.981Z"
     },
     {
       "id": "bm-cloudflare",

@@ -7,6 +7,7 @@ import settingsRoutes from './routes/settings.routes';
 import uploadRoutes from './routes/upload.routes';
 import pageRoutes from './routes/page.routes';
 import aiRoutes from './routes/ai.routes';
+import feedRoutes from './routes/feed.routes';
 import { securityHeaders } from './middleware/security.middleware';
 import { jsonDb } from './repositories/json.repository';
 
@@ -83,6 +84,7 @@ app.use('/api/pages', pageRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/feed', feedRoutes);
 
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

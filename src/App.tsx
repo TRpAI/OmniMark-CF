@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { HomePage } from './pages/HomePage';
 import { AdminPage } from './pages/AdminPage';
+import { Footer } from './components/Footer';
 import { LoginModal } from './features/auth/components/LoginModal';
 import { AiAssistantDrawer } from './features/ai/components/AiAssistantDrawer';
 import { PWAInstallBottomBanner } from './components/PWAInstallBanner';
@@ -9,26 +10,74 @@ import { useAuthStore } from './stores/auth.store';
 import { useBookmarkStore } from './stores/bookmark.store';
 import { useUiStore } from './stores/ui.store';
 import { useThemeStore } from './stores/theme.store';
+import { parseCurrentRoute, buildRouteHash } from './utils/router';
 import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 export default function App() {
   const { checkAuth } = useAuthStore();
-  const { loadInitialData } = useBookmarkStore();
-  const { currentView, toasts, removeToast } = useUiStore();
+  const { loadInitialData, setActiveCategory, setActivePage } = useBookmarkStore();
+  const { currentView, setCurrentView, setAdminTab, toasts, removeToast } = useUiStore();
   const { resolvedTheme } = useThemeStore();
 
   useEffect(() => {
     checkAuth();
     loadInitialData();
-  }, [checkAuth, loadInitialData]);
+
+    // 1. Initial Route Synchronization: If hash is empty (e.g. iframe refresh), restore hash from storage
+    const initialRoute = parseCurrentRoute();
+    if (initialRoute.view === 'admin') {
+      setCurrentView('admin');
+      if (initialRoute.adminTab) setAdminTab(initialRoute.adminTab);
+    } else {
+      setCurrentView('home');
+      if (initialRoute.activePageId) {
+        setActivePage(initialRoute.activePageId);
+      } else if (initialRoute.activeCategoryId) {
+        setActiveCategory(initialRoute.activeCategoryId);
+      }
+    }
+
+    const targetHash = buildRouteHash(initialRoute);
+    if (!window.location.hash || window.location.hash === '#' || window.location.hash === '#/') {
+      if (targetHash && targetHash !== '#/') {
+        window.history.replaceState(null, '', targetHash);
+      }
+    }
+
+    // 2. Browser Navigation & Hashchange Event Listener
+    const handleHashChange = () => {
+      const route = parseCurrentRoute();
+      if (route.view === 'admin') {
+        setCurrentView('admin');
+        if (route.adminTab) setAdminTab(route.adminTab);
+      } else {
+        setCurrentView('home');
+        if (route.activePageId) {
+          setActivePage(route.activePageId);
+        } else if (route.activeCategoryId) {
+          setActiveCategory(route.activeCategoryId);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleHashChange);
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      window.removeEventListener('popstate', handleHashChange);
+    };
+  }, [checkAuth, loadInitialData, setCurrentView, setAdminTab, setActiveCategory, setActivePage]);
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-indigo-500 selection:text-white transition-colors">
+    <div className="min-h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 font-sans selection:bg-indigo-500 selection:text-white transition-colors">
       {/* Navigation Header */}
       <Navbar />
 
       {/* Main View Area */}
-      {currentView === 'admin' ? <AdminPage /> : <HomePage />}
+      <main className="flex-1 w-full pb-16 sm:pb-20">
+        {currentView === 'admin' ? <AdminPage /> : <HomePage />}
+      </main>
 
       {/* Admin Login Modal */}
       <LoginModal />
@@ -38,6 +87,9 @@ export default function App() {
 
       {/* PWA Install Bottom Floating Banner & Modal */}
       <PWAInstallBottomBanner />
+
+      {/* 统一全局页脚 (前台与管理后台保持完全一致) */}
+      <Footer className="fixed bottom-0 left-0 right-0 z-30" />
 
       {/* Toast Notifications */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">
@@ -61,7 +113,7 @@ export default function App() {
               </div>
               <button
                 onClick={() => removeToast(toast.id)}
-                className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>

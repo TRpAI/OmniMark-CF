@@ -5,6 +5,7 @@ import { categoryApi } from '../api/category.api';
 import { settingsApi } from '../api/settings.api';
 import { pageApi } from '../api/page.api';
 import { DEFAULT_SETTINGS, INITIAL_BOOKMARKS, INITIAL_CATEGORIES, INITIAL_PAGES } from '../../packages/shared/constants';
+import { parseCurrentRoute, updateUrlAndStorage } from '../utils/router';
 
 interface BookmarkState {
   bookmarks: Bookmark[];
@@ -54,14 +55,16 @@ interface BookmarkState {
   refreshStats: () => Promise<void>;
 }
 
+const initialRoute = parseCurrentRoute();
+
 export const useBookmarkStore = create<BookmarkState>((set, get) => ({
   bookmarks: INITIAL_BOOKMARKS,
   categories: INITIAL_CATEGORIES,
   customPages: INITIAL_PAGES,
   settings: DEFAULT_SETTINGS,
   stats: null,
-  activeCategoryId: 'all',
-  activePageId: null,
+  activeCategoryId: initialRoute.activeCategoryId || 'all',
+  activePageId: initialRoute.activePageId,
   searchQuery: '',
   selectedEngineId: 'google',
   selectedBookmarkDetail: null,
@@ -92,8 +95,14 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     }
   },
 
-  setActiveCategory: (id) => set({ activeCategoryId: id, activePageId: null }),
-  setActivePage: (id) => set({ activePageId: id, searchQuery: '' }),
+  setActiveCategory: (id) => {
+    set({ activeCategoryId: id, activePageId: null });
+    updateUrlAndStorage({ view: 'home', activeCategoryId: id, activePageId: null });
+  },
+  setActivePage: (id) => {
+    set({ activePageId: id, searchQuery: '' });
+    updateUrlAndStorage({ view: 'home', activePageId: id });
+  },
   setSearchQuery: (q) => set({ searchQuery: q, activePageId: null }),
   setSelectedEngine: (id) => set({ selectedEngineId: id }),
 
@@ -146,19 +155,22 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
 
   batchDeleteBookmarks: async (ids) => {
     const idSet = new Set(ids);
+    const prevBookmarks = get().bookmarks;
     set((state) => ({
       bookmarks: state.bookmarks.filter((b) => !idSet.has(b.id)),
     }));
     try {
       await bookmarkApi.batchDelete(ids);
+      get().loadInitialData();
     } catch (e) {
-      console.warn('Failed to persist batch delete bookmarks:', e);
+      set({ bookmarks: prevBookmarks });
+      throw e;
     }
-    get().loadInitialData();
   },
 
   batchUpdateBookmarks: async (ids, updates) => {
     const idSet = new Set(ids);
+    const prevBookmarks = get().bookmarks;
     set((state) => ({
       bookmarks: state.bookmarks.map((b) =>
         idSet.has(b.id) ? { ...b, ...updates, updatedAt: new Date().toISOString() } : b
@@ -166,10 +178,11 @@ export const useBookmarkStore = create<BookmarkState>((set, get) => ({
     }));
     try {
       await bookmarkApi.batchUpdate(ids, updates);
+      get().loadInitialData();
     } catch (e) {
-      console.warn('Failed to persist batch update bookmarks:', e);
+      set({ bookmarks: prevBookmarks });
+      throw e;
     }
-    get().loadInitialData();
   },
 
   reorderBookmarks: async (items) => {

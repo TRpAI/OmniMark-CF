@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { parseCurrentRoute, updateUrlAndStorage } from '../utils/router';
 
 interface ToastMessage {
   id: string;
@@ -24,19 +25,27 @@ interface UiState {
   removeToast: (id: string) => void;
 }
 
+const initialRoute = parseCurrentRoute();
+
 export const useUiStore = create<UiState>((set) => ({
-  currentView: 'home',
+  currentView: initialRoute.view,
   isLoginModalOpen: false,
   isAiAssistantOpen: false,
   toasts: [],
-  adminTab: 'dashboard',
+  adminTab: initialRoute.adminTab,
 
-  setCurrentView: (view) => set({ currentView: view }),
+  setCurrentView: (view) => {
+    set({ currentView: view });
+    updateUrlAndStorage({ view });
+  },
   setLoginModalOpen: (open) => set({ isLoginModalOpen: open }),
   setAiAssistantOpen: (open) => set({ isAiAssistantOpen: open, aiTargetBookmarkId: open ? undefined : undefined }),
   openAiAssistantWithBookmark: (bookmarkId) => set({ isAiAssistantOpen: true, aiTargetBookmarkId: bookmarkId }),
   toggleAiAssistant: () => set((s) => ({ isAiAssistantOpen: !s.isAiAssistantOpen })),
-  setAdminTab: (tab) => set({ adminTab: tab }),
+  setAdminTab: (tab) => {
+    set({ adminTab: tab });
+    updateUrlAndStorage({ view: 'admin', adminTab: tab });
+  },
 
   showToast: (message, type = 'info') => {
     const id = 'toast-' + Math.random().toString(36).substring(2, 9);

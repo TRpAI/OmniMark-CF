@@ -333,26 +333,56 @@ export const BookmarkManager: React.FC = () => {
     }
   };
 
+  const handleQuickBatchChangeCategory = async (targetCatId: string) => {
+    if (selectedIds.length === 0) {
+      showToast('请先勾选需要移动分类的书签', 'info');
+      return;
+    }
+    if (!targetCatId) {
+      showToast('请选择目标分类', 'error');
+      return;
+    }
+    setIsBatchProcessing(true);
+    const count = selectedIds.length;
+    try {
+      const targetCat = categories.find((c) => c.id === targetCatId);
+      await batchUpdateBookmarks(selectedIds, { categoryId: targetCatId });
+      showToast(`已成功将 ${count} 个书签移入分类「${targetCat?.name || '指定分类'}」`, 'success');
+      setSelectedIds([]);
+      setBatchTargetCategory('');
+      setIsBatchCategoryModalOpen(false);
+
+      // If user was filtering by a single category and it wasn't the target category,
+      // switch to the target category so they immediately see the moved bookmarks!
+      if (selectedCategory !== 'all' && selectedCategory !== targetCatId) {
+        setSelectedCategory(targetCatId);
+      }
+    } catch (err: any) {
+      console.error('Batch change category error:', err);
+      showToast(err.message || '批量修改分类失败，请重试', 'error');
+    } finally {
+      setIsBatchProcessing(false);
+    }
+  };
+
   const handleBatchChangeCategory = () => {
-    if (selectedIds.length === 0) return;
-    setBatchTargetCategory(categories[0]?.id || '');
+    if (selectedIds.length === 0) {
+      showToast('请先勾选需要调整分类的书签', 'info');
+      return;
+    }
+    const selectedBms = bookmarks.filter((b) => selectedIds.includes(b.id));
+    const currentCatId = selectedBms[0]?.categoryId;
+    const alternateCat = categories.find((c) => c.id !== currentCatId) || categories[0];
+    setBatchTargetCategory(alternateCat?.id || categories[0]?.id || '');
     setIsBatchCategoryModalOpen(true);
   };
 
   const confirmBatchChangeCategory = async () => {
-    if (selectedIds.length === 0 || !batchTargetCategory) return;
-    setIsBatchProcessing(true);
-    try {
-      const targetCat = categories.find((c) => c.id === batchTargetCategory);
-      await batchUpdateBookmarks(selectedIds, { categoryId: batchTargetCategory });
-      showToast(`成功将 ${selectedIds.length} 个书签移入分类「${targetCat?.name || ''}」`, 'success');
-      setSelectedIds([]);
-      setIsBatchCategoryModalOpen(false);
-    } catch (err: any) {
-      showToast(err.message || '批量修改分类失败', 'error');
-    } finally {
-      setIsBatchProcessing(false);
+    if (!batchTargetCategory) {
+      showToast('请选择目标分类', 'error');
+      return;
     }
+    await handleQuickBatchChangeCategory(batchTargetCategory);
   };
 
   const handleBatchTogglePin = async (isPinned: boolean) => {
@@ -529,16 +559,40 @@ export const BookmarkManager: React.FC = () => {
 
             {/* Right: 胶囊操作按钮组 */}
             <div className="flex flex-wrap items-center gap-1.5">
-              {/* 更改分类 */}
+              {/* 直接批量选择目标分类下拉 */}
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-800 border border-zinc-700/80 text-zinc-200">
+                <Folder className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span className="text-[11px] text-zinc-400 hidden sm:inline">分类:</span>
+                <select
+                  value=""
+                  onChange={(e) => {
+                    const targetId = e.target.value;
+                    if (targetId) handleQuickBatchChangeCategory(targetId);
+                  }}
+                  disabled={isBatchProcessing}
+                  className="bg-transparent text-xs text-indigo-300 font-medium focus:outline-none cursor-pointer"
+                  title="一键将选中书签移入指定分类"
+                >
+                  <option value="" disabled className="bg-zinc-900 text-zinc-400">
+                    移入分类...
+                  </option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id} className="bg-zinc-900 text-zinc-100">
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 更改分类弹窗 */}
               <button
                 type="button"
                 onClick={handleBatchChangeCategory}
                 disabled={isBatchProcessing}
                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer"
-                title="批量更改分类"
+                title="打开弹窗调整分类"
               >
-                <Folder className="w-3.5 h-3.5 text-indigo-400" />
-                <span>分类</span>
+                <span>弹窗调整</span>
               </button>
 
               {/* 设为置顶 */}
@@ -1010,10 +1064,31 @@ export const BookmarkManager: React.FC = () => {
 
                       {/* Category */}
                       <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium">
-                          <Folder className="w-3 h-3 text-zinc-400" />
-                          <span>{category?.name || '默认分类'}</span>
-                        </span>
+                        <div className="relative inline-flex items-center">
+                          <select
+                            value={bm.categoryId}
+                            onChange={async (e) => {
+                              const newCatId = e.target.value;
+                              if (newCatId && newCatId !== bm.categoryId) {
+                                try {
+                                  await updateBookmark(bm.id, { categoryId: newCatId });
+                                  const targetCat = categories.find((c) => c.id === newCatId);
+                                  showToast(`已将「${bm.title}」移动至分类「${targetCat?.name || '指定分类'}」`, 'success');
+                                } catch (err: any) {
+                                  showToast(err.message || '更改分类失败', 'error');
+                                }
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium border border-transparent hover:border-zinc-300 dark:hover:border-zinc-700 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+                            title="点击可直接更改所属分类"
+                          >
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </td>
 
                       {/* Tags */}
@@ -1411,6 +1486,7 @@ export const BookmarkManager: React.FC = () => {
                 onChange={(e) => setBatchTargetCategory(e.target.value)}
                 className="w-full px-3 py-2 text-sm rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
+                <option value="" disabled>-- 请选择目标分类 --</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}

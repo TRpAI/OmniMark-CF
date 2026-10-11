@@ -135,7 +135,7 @@ export const AdminPage: React.FC = () => {
   const flatNavItems = navSections.flatMap((s) => s.items);
 
   return (
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 overflow-x-hidden">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-20 sm:pb-24 overflow-x-hidden min-h-[calc(100vh-4rem)]">
       {/* 1. Modern Top Header (移动端窄屏自适应，杜绝横向撑出) */}
       <div className="flex items-center justify-between gap-3 pb-3 sm:pb-5 mb-4 sm:mb-6 border-b border-zinc-200/80 dark:border-zinc-800/80 w-full overflow-hidden">
         <div className="flex items-center gap-2.5 min-w-0">
