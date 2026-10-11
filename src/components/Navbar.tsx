@@ -1,5 +1,5 @@
 import React from 'react';
-import { Compass, Settings, LogOut, ShieldCheck, Lock, Sparkles, Layers } from 'lucide-react';
+import { Compass, Settings, LogOut, Lock, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
 import { useUiStore } from '../stores/ui.store';
 import { useBookmarkStore } from '../stores/bookmark.store';
@@ -9,7 +9,7 @@ import { ThemeSwitcher } from './ThemeSwitcher';
 
 export const Navbar: React.FC = () => {
   const { isAuthenticated, logout } = useAuthStore();
-  const { currentView, setCurrentView, setLoginModalOpen, toggleAiAssistant, toggleMobileCategoryDrawer } = useUiStore();
+  const { currentView, setCurrentView, setLoginModalOpen, toggleAiAssistant } = useUiStore();
   const { settings } = useBookmarkStore();
 
   const handleAdminAction = () => {
@@ -49,17 +49,6 @@ export const Navbar: React.FC = () => {
 
         {/* Right: AI Assistant + PWA Install + Theme Switcher + Management Access */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Mobile Category Drawer Toggle Button */}
-          {currentView === 'home' && (
-            <button
-              onClick={() => toggleMobileCategoryDrawer()}
-              title="展开侧边分类导航栏"
-              className="md:hidden inline-flex items-center justify-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-full bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800/80 shadow-2xs active:scale-95 transition-all cursor-pointer shrink-0"
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>分类</span>
-            </button>
-          )}
 
           {/* AI Assistant Button (Capsule) */}
           <button

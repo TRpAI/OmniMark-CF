@@ -59,7 +59,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   subtitle: '现代、快速、可迁移的极简书签与网址导航中心',
   logoText: 'OmniMark',
   footerText: 'Powered by OmniMark · 高性能原子存储与现代化书签管理系统',
-  announcement: '欢迎使用 OmniMark！可自由切换分类与搜索引擎，登录管理后台可导入导出及设置书签展示规则。',
+  announcement: '',
   enableClickCounter: true,
   enablePinnedSection: true,
   enableSiteFeed: true,

@@ -5,8 +5,6 @@ import {
   ExternalLink,
   Sparkles,
   ChevronRight,
-  Menu,
-  Bookmark as BookmarkIcon,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
@@ -29,74 +27,13 @@ export const CategoryTabs: React.FC = () => {
 
   const totalCount = bookmarks.length;
 
-  // Determine active title & icon for mobile compact bar
-  let activeTitle = '全部书签';
-  let activeIcon: React.ReactNode = <BookmarkIcon className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />;
-  let activeItemCount = totalCount;
-
-  if (activePageId === 'site-feed') {
-    activeTitle = settings.siteFeedTitle ? settings.siteFeedTitle.split(' ')[0] : '站点快讯';
-    activeIcon = <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />;
-    activeItemCount = 0;
-  } else if (activePageId) {
-    const page = customPages.find((p) => p.id === activePageId);
-    if (page) {
-      activeTitle = page.title;
-      activeIcon = renderCategoryIcon(page.icon || 'FileText', 'w-3.5 h-3.5 text-indigo-500');
-    }
-  } else if (activeCategoryId && activeCategoryId !== 'all') {
-    const cat = categories.find((c) => c.id === activeCategoryId);
-    if (cat) {
-      activeTitle = cat.name;
-      activeIcon = renderCategoryIcon(cat.icon, 'w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400');
-      const count = bookmarks.filter((b) => b.categoryId === cat.id).length;
-      activeItemCount = count > 0 ? count : cat.count || 0;
-    }
-  }
-
   return (
     <>
       {/* ========================================================================= */}
       {/* 1. Mobile Narrow-Screen Compact Bar (< md)                                */}
-      {/* 优化移动端窄屏：大幅削减垂直高度，提供侧边抽屉展开/隐藏入口与轻量横向快捷胶囊 */}
+      {/* 优化移动端窄屏：轻量横向滚动分类胶囊与“更多分类”侧边栏入口              */}
       {/* ========================================================================= */}
       <div className="block md:hidden w-full px-3 mb-3 select-none">
-        {/* Mobile Active Header & Side Drawer Expand Trigger */}
-        <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-white/95 dark:bg-zinc-900/95 border border-zinc-200/80 dark:border-zinc-800/80 shadow-2xs backdrop-blur-md mb-2">
-          {/* Active Category Display */}
-          <div className="flex items-center gap-2 min-w-0 flex-1 pl-1">
-            <div className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/60 dark:border-indigo-800/60 shrink-0">
-              {activeIcon}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-zinc-900 dark:text-white truncate">
-                  {activeTitle}
-                </span>
-                {activeItemCount > 0 && (
-                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-semibold shrink-0">
-                    {activeItemCount}
-                  </span>
-                )}
-              </div>
-              <p className="text-[10px] text-zinc-400 dark:text-zinc-500 truncate leading-none mt-0.5">
-                点击右侧按钮展开侧边栏查看全部 {categories.length} 个分类
-              </p>
-            </div>
-          </div>
-
-          {/* Expand Sidebar Trigger Button */}
-          <button
-            type="button"
-            onClick={() => setMobileCategoryDrawerOpen(true)}
-            title="展开侧边分类导航栏"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer shrink-0"
-          >
-            <Menu className="w-3.5 h-3.5" />
-            <span>侧边栏</span>
-          </button>
-        </div>
-
         {/* Quick Horizontal Swipeable Category Pills on Mobile */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none scroll-smooth">
           {/* 全部 */}

@@ -6,23 +6,27 @@ import { CustomPageViewer } from '../features/pages/components/CustomPageViewer'
 import { SiteFeedViewer } from '../features/feed/components/SiteFeedViewer';
 import { BookmarkDetailModal } from '../features/bookmarks/components/BookmarkDetailModal';
 import { useBookmarkStore } from '../stores/bookmark.store';
-import { Megaphone } from 'lucide-react';
+import { useUiStore } from '../stores/ui.store';
+import { Layers } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const { settings, isLoading, activePageId } = useBookmarkStore();
+  const { toggleMobileCategoryDrawer } = useUiStore();
 
   return (
     <div className="flex flex-col justify-between overflow-x-hidden w-full max-w-full">
+      {/* 移动端窄屏前台侧边栏按钮：以图标形式放置于站点图标下方，不在页头 */}
+      <button
+        type="button"
+        onClick={() => toggleMobileCategoryDrawer()}
+        title="展开侧边分类导航栏"
+        aria-label="展开侧边分类导航栏"
+        className="fixed top-[66px] left-3 z-30 md:hidden w-9 h-9 flex items-center justify-center rounded-xl bg-white/95 dark:bg-zinc-900/95 border border-zinc-200/80 dark:border-zinc-800/80 shadow-md backdrop-blur-md text-zinc-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 active:scale-95 transition-all cursor-pointer group"
+      >
+        <Layers className="w-4.5 h-4.5 text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform" />
+      </button>
+
       <div className="w-full max-w-full">
-        {/* Optional Announcement Banner */}
-        {settings.announcement && (
-          <div className="w-full bg-indigo-50/80 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900/50 py-2 px-4 text-center">
-            <div className="max-w-4xl mx-auto flex items-center justify-center gap-2 text-xs sm:text-sm text-indigo-700 dark:text-indigo-300">
-              <Megaphone className="w-4 h-4 shrink-0 text-indigo-500" />
-              <span>{settings.announcement}</span>
-            </div>
-          </div>
-        )}
 
         {/* Hero Section */}
         <section className="pt-4 sm:pt-10 pb-2 sm:pb-4 text-center px-4">

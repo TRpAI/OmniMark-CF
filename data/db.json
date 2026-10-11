@@ -268,7 +268,7 @@
     "subtitle": "现代、快速、可迁移的极简书签与网址导航中心",
     "logoText": "OmniMark",
     "footerText": "Powered by OmniMark · Cloudflare Pages + Workers + D1 Ready",
-    "announcement": "欢迎使用 OmniMark！可自由切换分类与搜索引擎，登录管理后台可导入导出及同步 Cloudflare D1。",
+    "announcement": "",
     "enableClickCounter": true,
     "enablePinnedSection": true,
     "searchEngines": [
