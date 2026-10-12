@@ -12,7 +12,7 @@ export const Footer: React.FC<FooterProps> = ({ className = '' }) => {
 
   return (
     <footer
-      className={`border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md py-2.5 sm:py-3 px-4 text-center text-xs text-zinc-400 dark:text-zinc-500 shadow-xs transition-colors ${className}`}
+      className={`border-t border-zinc-200/80 dark:border-zinc-800/80 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-md pt-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom,0px))] sm:py-3 px-4 text-center text-xs text-zinc-400 dark:text-zinc-500 shadow-xs transition-colors shrink-0 ${className}`}
     >
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
         {/* Brand info */}

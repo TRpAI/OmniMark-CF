@@ -8,9 +8,12 @@ import {
   Search,
   ChevronRight,
   Bookmark as BookmarkIcon,
+  Settings,
+  LogOut,
 } from 'lucide-react';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
+import { useAuthStore } from '../../../stores/auth.store';
 import { renderCategoryIcon } from '../../../utils/iconMap';
 
 export const MobileCategoryDrawer: React.FC = () => {
@@ -25,7 +28,13 @@ export const MobileCategoryDrawer: React.FC = () => {
     settings,
   } = useBookmarkStore();
 
-  const { isMobileCategoryDrawerOpen, setMobileCategoryDrawerOpen } = useUiStore();
+  const {
+    isMobileCategoryDrawerOpen,
+    setMobileCategoryDrawerOpen,
+    setCurrentView,
+    setLoginModalOpen,
+  } = useUiStore();
+  const { isAuthenticated, logout } = useAuthStore();
   const [filterText, setFilterText] = useState('');
 
   // Close on Escape key
@@ -308,16 +317,57 @@ export const MobileCategoryDrawer: React.FC = () => {
           )}
         </div>
 
-        {/* Drawer Footer */}
-        <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/70 dark:bg-zinc-900/70 flex items-center justify-between text-xs text-zinc-500 shrink-0">
-          <span className="truncate">点击分类即时切换展示</span>
-          <button
-            type="button"
-            onClick={() => setMobileCategoryDrawerOpen(false)}
-            className="px-3 py-1.5 rounded-lg bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer"
-          >
-            收起
-          </button>
+        {/* Drawer Footer: Admin Access & Collapse */}
+        <div className="p-3 border-t border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/70 flex flex-col gap-2 shrink-0">
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setMobileCategoryDrawerOpen(false);
+                if (isAuthenticated) {
+                  setCurrentView('admin');
+                } else {
+                  setLoginModalOpen(true);
+                }
+              }}
+              className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-white dark:bg-zinc-800 text-zinc-700 dark:text-zinc-200 border border-zinc-200/80 dark:border-zinc-700/80 hover:text-indigo-600 shadow-2xs cursor-pointer truncate"
+            >
+              {isAuthenticated ? (
+                <>
+                  <Settings className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span className="truncate font-semibold">管理后台</span>
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" title="已登录" />
+                </>
+              ) : (
+                <>
+                  <Lock className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                  <span className="truncate font-semibold">管理后台</span>
+                </>
+              )}
+            </button>
+
+            {isAuthenticated && (
+              <button
+                type="button"
+                onClick={() => {
+                  logout();
+                  setMobileCategoryDrawerOpen(false);
+                }}
+                title="退出登录"
+                className="p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl transition-colors cursor-pointer shrink-0"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setMobileCategoryDrawerOpen(false)}
+              className="px-3 py-2 rounded-xl bg-zinc-200/80 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 text-xs font-medium hover:bg-zinc-300 dark:hover:bg-zinc-700 cursor-pointer shrink-0"
+            >
+              收起
+            </button>
+          </div>
         </div>
       </div>
     </div>

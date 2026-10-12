@@ -30,10 +30,10 @@ export const CategoryTabs: React.FC = () => {
   return (
     <>
       {/* ========================================================================= */}
-      {/* 1. Mobile Narrow-Screen Compact Bar (< md)                                */}
-      {/* 优化移动端窄屏：轻量横向滚动分类胶囊与“更多分类”侧边栏入口              */}
+      {/* 1. Mobile & Tablet Compact Pills (< lg)                                    */}
+      {/* 移动端与平板窄屏：轻量横向滚动分类胶囊与“更多分类”侧边栏入口              */}
       {/* ========================================================================= */}
-      <div className="block md:hidden w-full px-3 mb-3 select-none">
+      <div className="block lg:hidden w-full px-3 mb-3 select-none">
         {/* Quick Horizontal Swipeable Category Pills on Mobile */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none scroll-smooth">
           {/* 全部 */}
@@ -99,11 +99,10 @@ export const CategoryTabs: React.FC = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. Desktop Responsive Grid (>= md)                                        */}
-      {/* 平板与桌面端：保持整齐划一的等长胶囊网格，清晰美观                          */}
+      {/* 2. Tablet Responsive Grid (md to lg only; hidden on lg+ since sidebar is used)*/}
       {/* ========================================================================= */}
-      <div className="hidden md:block w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-4 sm:mb-8 select-none">
-        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-2.5 pb-2.5 sm:pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 w-full max-w-full">
+      <div className="hidden md:block lg:hidden w-full max-w-7xl mx-auto px-4 sm:px-6 mb-4 sm:mb-8 select-none">
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5 pb-2.5 sm:pb-3 border-b border-zinc-200/80 dark:border-zinc-800/80 w-full max-w-full">
           {/* 1. 全部书签 等长胶囊 */}
           <button
             type="button"

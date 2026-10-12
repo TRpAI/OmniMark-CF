@@ -39,11 +39,11 @@ export const DEFAULT_SEARCH_ENGINES = [
 ];
 
 export const DEFAULT_AI_PROVIDER_MODELS: Record<string, string[]> = {
-  gemini: ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite'],
+  gemini: ['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview'],
   openai: ['gpt-4o', 'gpt-4o-mini', 'o3-mini', 'o1', 'gpt-4.5-preview', 'gpt-4-turbo', 'gpt-3.5-turbo'],
   deepseek: ['deepseek-chat', 'deepseek-reasoner'],
   anthropic: ['claude-3-7-sonnet-20250219', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022', 'claude-3-opus-20240229'],
-  custom: ['gemini-3.8-flash', 'deepseek-chat', 'gpt-4o-mini', 'Qwen/Qwen2.5-72B-Instruct', 'claude-3-5-sonnet-20241022'],
+  custom: ['gemini-3.5-flash', 'deepseek-chat', 'gpt-4o-mini', 'Qwen/Qwen2.5-72B-Instruct', 'claude-3-5-sonnet-20241022'],
 };
 
 export const DEFAULT_AI_BASE_URLS: Record<string, string> = {
@@ -75,7 +75,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   aiProvider: 'gemini',
   aiApiKey: '',
   aiBaseUrl: 'https://generativelanguage.googleapis.com',
-  aiModel: 'gemini-3.8-flash',
+  aiModel: 'gemini-3.5-flash',
   aiCustomModelName: '',
   aiCustomModels: [],
 };

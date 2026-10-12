@@ -181,7 +181,7 @@ export class AiService {
     if (provider === 'gemini') {
       const cleanM = (model || '').replace(/^models\//, '');
       if (!cleanM || cleanM.includes('2.5-flash') || cleanM.includes('2.0-flash') || cleanM.includes('1.5-flash')) {
-        model = 'gemini-3.8-flash';
+        model = 'gemini-3.5-flash';
       }
     } else if (provider === 'deepseek') {
       model = model || 'deepseek-chat';
@@ -237,7 +237,7 @@ export class AiService {
     if (provider === 'gemini') {
       const cleanM = (model || '').replace(/^models\//, '');
       if (!cleanM || cleanM.includes('2.5-flash') || cleanM.includes('2.0-flash') || cleanM.includes('1.5-flash')) {
-        model = 'gemini-3.8-flash';
+        model = 'gemini-3.5-flash';
       }
     } else if (provider === 'deepseek') {
       model = model || 'deepseek-chat';
@@ -254,9 +254,9 @@ export class AiService {
         throw new Error('未配置 Gemini API Key，请在后台设置中填写 Token 或在环境变量中配置 GEMINI_API_KEY');
       }
 
-      let effectiveModel = (model || 'gemini-3.8-flash').replace(/^models\//, '');
+      let effectiveModel = (model || 'gemini-3.5-flash').replace(/^models\//, '');
       if (effectiveModel.includes('2.5-flash') || effectiveModel.includes('2.0-flash') || effectiveModel.includes('1.5-flash')) {
-        effectiveModel = 'gemini-3.8-flash';
+        effectiveModel = 'gemini-3.5-flash';
       }
 
       const isGoogleHost = !baseUrl || baseUrl.includes('generativelanguage.googleapis.com');
@@ -274,24 +274,39 @@ export class AiService {
           });
           return res.text?.trim() || '';
         } catch (err: any) {
-          let msg = err?.message || '';
+          const rawMsg = err?.message || '';
+
+          // 自动故障转移：如果指定的模型遇到 503 高负载尖峰或 404 已废弃，自动降级至官方高可用模型 gemini-3.5-flash / gemini-3.5-flash-lite
+          if (rawMsg.includes('503') || rawMsg.includes('high demand') || rawMsg.includes('404') || rawMsg.includes('NOT_FOUND')) {
+            const fallbackCandidates = ['gemini-3.5-flash', 'gemini-3.5-flash-lite'];
+            for (const fallbackModel of fallbackCandidates) {
+              if (fallbackModel !== effectiveModel) {
+                try {
+                  const aiFallback = new GoogleGenAI({ apiKey: effectiveKey });
+                  const retryRes = await aiFallback.models.generateContent({
+                    model: fallbackModel,
+                    contents: userPrompt,
+                    config: { systemInstruction: systemPrompt },
+                  });
+                  if (retryRes.text?.trim()) {
+                    return retryRes.text.trim();
+                  }
+                } catch {}
+              }
+            }
+          }
+
+          let msg = rawMsg;
           if (msg.includes('API_KEY_INVALID') || msg.includes('400')) {
             msg = 'Gemini API Key 格式无效，请检查填写的 Token（在 Google AI Studio 申请）';
           } else if (msg.includes('PERMISSION_DENIED') || msg.includes('403')) {
             msg = 'Gemini API 拒绝访问，请检查密钥权限或账户状态';
           } else if (msg.includes('RESOURCE_EXHAUSTED') || msg.includes('429')) {
             msg = 'Gemini API 请求配额超限 (429 Rate Limit)，请稍后再试';
+          } else if (msg.includes('503') || msg.includes('high demand')) {
+            msg = `模型 [${effectiveModel}] 官方服务器繁忙 (503)，建议切换为官方主力模型 gemini-3.5-flash`;
           } else if (msg.includes('NOT_FOUND') || msg.includes('404')) {
-            try {
-              const aiFallback = new GoogleGenAI({ apiKey: effectiveKey });
-              const retryRes = await aiFallback.models.generateContent({
-                model: 'gemini-3.8-flash',
-                contents: userPrompt,
-                config: { systemInstruction: systemPrompt },
-              });
-              return retryRes.text?.trim() || '';
-            } catch {}
-            msg = `模型 '${effectiveModel}' 不可用，建议选择 gemini-3.8-flash`;
+            msg = `模型 [${effectiveModel}] 不可用，建议选择官方最新模型 gemini-3.5-flash`;
           }
           throw new Error(msg || `Gemini 服务调用失败: ${err.message}`);
         }

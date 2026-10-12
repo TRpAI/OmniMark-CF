@@ -46,7 +46,7 @@ const AI_PROVIDERS: Array<{
     id: 'gemini',
     name: 'Google Gemini',
     badge: '官方推荐 / 极速',
-    desc: 'Google 最新 Gemini 3.8 Flash / 3.5 Flash，服务端已内置运行环境密钥，支持免配置一键使用',
+    desc: 'Google 官方更新 Gemini 3.5 Flash / 3.5 Flash-Lite / 3.8 Flash，服务端已内置运行环境密钥，支持免配置一键使用',
     defaultBaseUrl: 'https://generativelanguage.googleapis.com',
     iconBg: 'bg-indigo-500 text-white',
   },
@@ -111,7 +111,7 @@ export const SettingsManager: React.FC = () => {
   const getInitialModel = (prov: string, currentModel?: string) => {
     if (prov === 'gemini') {
       if (!currentModel || currentModel.includes('2.5-flash') || currentModel.includes('2.0-flash') || currentModel.includes('1.5-flash')) {
-        return 'gemini-3.8-flash';
+        return 'gemini-3.5-flash';
       }
       return currentModel;
     }

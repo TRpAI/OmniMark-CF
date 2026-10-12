@@ -310,7 +310,9 @@
     ],
     "defaultSearchEngineId": "google",
     "maxBookmarksPerCategory": 0,
-    "maxTotalBookmarks": 0
+    "maxTotalBookmarks": 0,
+    "aiProvider": "gemini",
+    "aiModel": "gemini-3.5-flash"
   },
   "customPages": [
     {

@@ -75,7 +75,7 @@ export default function App() {
       <Navbar />
 
       {/* Main View Area */}
-      <main className="flex-1 w-full pb-16 sm:pb-20">
+      <main className="flex-1 w-full flex flex-col min-h-0">
         {currentView === 'admin' ? <AdminPage /> : <HomePage />}
       </main>
 
@@ -88,8 +88,8 @@ export default function App() {
       {/* PWA Install Bottom Floating Banner & Modal */}
       <PWAInstallBottomBanner />
 
-      {/* 统一全局页脚 (前台与管理后台保持完全一致) */}
-      <Footer className="fixed bottom-0 left-0 right-0 z-30" />
+      {/* 统一全局页脚 (流式自适应底部，消除移动端固定留白缝隙) */}
+      <Footer className="w-full mt-auto" />
 
       {/* Toast Notifications */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full">

@@ -66,42 +66,26 @@ export const Navbar: React.FC = () => {
           {/* Theme Switcher: 明亮 / 暗黑 / 自动切换 (Capsule) */}
           <ThemeSwitcher />
 
-          {/* Single Unified Admin/Home Toggle Button (Capsule) */}
-          <button
-            onClick={handleAdminAction}
-            title={currentView === 'admin' ? '返回前台导航' : isAuthenticated ? '管理后台' : '管理员登录'}
-            className={`inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full transition-all cursor-pointer shrink-0 ${
-              currentView === 'admin'
-                ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm hover:opacity-90'
-                : 'bg-zinc-100/90 hover:bg-zinc-200/90 dark:bg-zinc-800/90 dark:hover:bg-zinc-700/90 text-zinc-700 dark:text-zinc-300 border border-zinc-200/60 dark:border-zinc-700/60'
-            }`}
-          >
-            {currentView === 'admin' ? (
-              <>
-                <Compass className="w-4 h-4 sm:w-4 sm:h-4 text-sky-400 dark:text-sky-600" />
-                <span className="hidden sm:inline">返回主页</span>
-              </>
-            ) : isAuthenticated ? (
-              <>
-                <Settings className="w-4 h-4 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400 animate-spin-slow" />
-                <span className="hidden sm:inline">管理后台</span>
-              </>
-            ) : (
-              <>
-                <Lock className="w-4 h-4 sm:w-4 sm:h-4 text-zinc-500 dark:text-zinc-400" />
-                <span className="hidden sm:inline">管理后台</span>
-              </>
-            )}
-          </button>
+          {/* When in Admin View, show Return to Home button in header */}
+          {currentView === 'admin' && (
+            <button
+              onClick={handleAdminAction}
+              title="返回前台主页"
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs sm:text-sm font-medium rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 shadow-sm hover:opacity-90 transition-all cursor-pointer shrink-0"
+            >
+              <Compass className="w-4 h-4 text-sky-400 dark:text-sky-600" />
+              <span className="hidden sm:inline">返回主页</span>
+            </button>
+          )}
 
-          {/* Quick Logout button when authenticated */}
-          {isAuthenticated && (
+          {/* Quick Logout button when in admin view */}
+          {currentView === 'admin' && isAuthenticated && (
             <button
               onClick={() => logout()}
               title="退出管理模式"
               className="p-1.5 sm:p-2 text-zinc-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-full transition-colors cursor-pointer shrink-0"
             >
-              <LogOut className="w-4 h-4 sm:w-4 sm:h-4" />
+              <LogOut className="w-4 h-4" />
             </button>
           )}
         </div>
