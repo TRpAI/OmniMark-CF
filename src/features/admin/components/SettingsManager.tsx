@@ -110,7 +110,13 @@ export const SettingsManager: React.FC = () => {
   const initialProvider = settings.aiProvider || 'gemini';
   const getInitialModel = (prov: string, currentModel?: string) => {
     if (prov === 'gemini') {
-      if (!currentModel || currentModel.includes('2.5-flash') || currentModel.includes('2.0-flash') || currentModel.includes('1.5-flash')) {
+      if (
+        !currentModel ||
+        currentModel.includes('2.5-flash') ||
+        currentModel.includes('2.0-flash') ||
+        currentModel.includes('1.5-flash') ||
+        currentModel === 'gemini-3.8-flash'
+      ) {
         return 'gemini-3.5-flash';
       }
       return currentModel;

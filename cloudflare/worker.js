@@ -2150,13 +2150,14 @@ export default {
         if (aiProvider === 'gemini') {
           const effectiveKey = aiApiKey || env.GEMINI_API_KEY || '';
           if (!effectiveKey) return null;
-          let effectiveModel = (aiModel || 'gemini-3.8-flash').replace(/^models\//, '');
+          let effectiveModel = (aiModel || 'gemini-3.5-flash').replace(/^models\//, '');
           if (!effectiveModel || effectiveModel.includes('2.5-flash') || effectiveModel.includes('2.0-flash') || effectiveModel.includes('1.5-flash')) {
-            effectiveModel = 'gemini-3.8-flash';
+            effectiveModel = 'gemini-3.5-flash';
           }
           const host = (aiBaseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
-          const endpoint = `${host}/v1beta/models/${effectiveModel}:generateContent?key=${effectiveKey}`;
-          try {
+          
+          const tryGenerate = async (m) => {
+            const endpoint = `${host}/v1beta/models/${m}:generateContent?key=${effectiveKey}`;
             const geminiRes = await fetch(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -2168,6 +2169,14 @@ export default {
             if (!geminiRes.ok) return null;
             const geminiData = await geminiRes.json();
             return geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+          };
+
+          try {
+            let resText = await tryGenerate(effectiveModel);
+            if (!resText && (effectiveModel === 'gemini-3.8-flash' || effectiveModel.includes('3.8'))) {
+              resText = await tryGenerate('gemini-3.5-flash') || await tryGenerate('gemini-3.5-flash-lite');
+            }
+            return resText;
           } catch {
             return null;
           }
@@ -2215,7 +2224,7 @@ export default {
 
         if (provider === 'gemini') {
           if (!effectiveKey) {
-            return success(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite']);
+            return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview']);
           }
           const host = (baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
           const endpoint = `${host}/v1beta/models?key=${effectiveKey}`;
@@ -2232,7 +2241,7 @@ export default {
               }
             }
           } catch {}
-          return success(['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3-flash-preview', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite']);
+          return success(['gemini-3.5-flash', 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview']);
         }
 
         const defaultBase = provider === 'deepseek' ? 'https://api.deepseek.com' : 'https://api.openai.com/v1';
@@ -2260,17 +2269,18 @@ export default {
       // 9.2 测试连通性
       if (path === '/ai/test-connection' && method === 'POST') {
         const { provider, apiKey, baseUrl, model } = await request.json().catch(() => ({}));
-        const testPrompt = '请简短回复一句中文：“连接成功，我是 [当前模型名称]，随时为您提供全站智能服务！”';
+        const targetModel = model || (provider === 'gemini' ? 'gemini-3.5-flash' : (provider === 'deepseek' ? 'deepseek-chat' : 'gpt-4o-mini'));
+        const testPrompt = `请简短回复一句中文：“连接成功，我是 ${targetModel}，随时为您提供全站智能服务！”`;
         const text = await executeAiCompletion(testPrompt, '你是一个测试机器人，请准确精练地响应测试。', {
           provider,
           apiKey,
           baseUrl,
-          model,
+          model: targetModel,
         });
         if (text) {
           return success({
             success: true,
-            model: model || '默认模型',
+            model: targetModel,
             message: '测试成功！模型连接与授权一切正常。',
             sampleResponse: text,
           });

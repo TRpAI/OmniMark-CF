@@ -31,6 +31,7 @@ import { useBookmarkStore } from '../../../stores/bookmark.store';
 import { useUiStore } from '../../../stores/ui.store';
 import { uploadApi } from '../../../api/settings.api';
 import { aiApi } from '../../../api/ai.api';
+import { renderCategoryIcon } from '../../../utils/iconMap';
 
 export const BookmarkManager: React.FC = () => {
   const {
@@ -477,7 +478,62 @@ export const BookmarkManager: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. 筛选器与添加/批量操作按钮栏 */}
+        {/* 2. 移动端与窄屏优先：统一分类横向滚动切换胶囊栏 */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth py-1 px-0.5 -mx-1 sm:mx-0">
+          <button
+            type="button"
+            onClick={() => setSelectedCategory('all')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+              selectedCategory === 'all'
+                ? 'bg-indigo-600 text-white shadow-2xs shadow-indigo-500/20 ring-1 ring-indigo-500'
+                : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+            }`}
+          >
+            <span>全部分类</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                selectedCategory === 'all'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+              }`}
+            >
+              {bookmarks.length}
+            </span>
+          </button>
+
+          {categories.map((c) => {
+            const count = bookmarks.filter((b) => b.categoryId === c.id).length;
+            const isSelected = selectedCategory === c.id;
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => setSelectedCategory(c.id)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white shadow-2xs shadow-indigo-500/20 ring-1 ring-indigo-500'
+                    : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white border border-zinc-200/80 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+                }`}
+              >
+                <span className={isSelected ? 'text-white' : 'text-indigo-500 dark:text-indigo-400'}>
+                  {renderCategoryIcon(c.icon, 'w-3.5 h-3.5')}
+                </span>
+                <span>{c.name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+                    isSelected
+                      ? 'bg-white/20 text-white'
+                      : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 3. 筛选器与添加/批量操作按钮栏 */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           {/* 筛选器在移动端平分一行 */}
           <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
@@ -805,11 +861,18 @@ export const BookmarkManager: React.FC = () => {
 
                 {/* Middle Row: Category Pill & Tags */}
                 <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                  {/* Category Pill */}
-                  <span className="inline-flex items-center gap-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-0.5 rounded-full border border-zinc-200/60 dark:border-zinc-700/60 truncate max-w-[140px]">
-                    <Folder className="w-3 h-3 text-indigo-500 shrink-0" />
+                  {/* Category Pill with Icon */}
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory(category?.id || 'all')}
+                    className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800/80 px-2.5 py-0.5 rounded-full border border-zinc-200/60 dark:border-zinc-700/60 truncate max-w-[140px] hover:border-indigo-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                    title={`按分类「${category?.name || '未分类'}」筛选`}
+                  >
+                    <span className="text-indigo-500 shrink-0">
+                      {renderCategoryIcon(category?.icon, 'w-3 h-3')}
+                    </span>
                     <span className="truncate">{category?.name || '未分类'}</span>
-                  </span>
+                  </button>
 
                   {/* Tags */}
                   {bm.tags && bm.tags.length > 0 && (
