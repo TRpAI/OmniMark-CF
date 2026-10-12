@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -25,6 +25,8 @@ import {
   Copy,
   Download,
   Unlock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Bookmark } from '../../../../packages/shared/types';
 import { useBookmarkStore } from '../../../stores/bookmark.store';
@@ -49,12 +51,19 @@ export const BookmarkManager: React.FC = () => {
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [privacyFilter, setPrivacyFilter] = useState<'all' | 'public' | 'private' | 'pinned' | 'feed'>('all');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null);
   const [isFetchingFavicon, setIsFetchingFavicon] = useState(false);
   const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [deleteConfirmBm, setDeleteConfirmBm] = useState<Bookmark | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // 切换分类或筛选器时，自动重置回第一页，保持页面显示尺寸规范统一
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, privacyFilter, search]);
 
   // Batch selection states
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -290,6 +299,13 @@ export const BookmarkManager: React.FC = () => {
       if (orderA !== orderB) return orderA - orderB;
       return (a.id || '').localeCompare(b.id || '');
     });
+
+  // 统一分页：保证切换不同分类时，页面大小与卡片数量规格统一
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedBookmarks = filtered.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const isAllSelected = filtered.length > 0 && filtered.every((b) => selectedIds.includes(b.id));
   const isPartiallySelected = filtered.some((b) => selectedIds.includes(b.id)) && !isAllSelected;
@@ -770,19 +786,20 @@ export const BookmarkManager: React.FC = () => {
       )}
 
       {/* Bookmarks Display: Mobile Compact Cards (< md) & Desktop Table (>= md) */}
-      {/* 1. Mobile Compact Cards */}
-      <div className="md:hidden space-y-3">
+      {/* 1. Mobile Compact Cards (统一规范卡片高度与容器大小，杜绝切换分类时页面抖动变形) */}
+      <div className="md:hidden space-y-3 min-h-[460px] flex flex-col justify-start">
         {filtered.length === 0 ? (
-          <div className="p-8 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800">
+          <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center text-zinc-400 text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 min-h-[320px]">
             未找到相关书签
           </div>
         ) : (
-          filtered.map((bm, index) => {
+          paginatedBookmarks.map((bm, pageIndex) => {
+            const globalIndex = (currentPage - 1) * pageSize + pageIndex;
             const category = categories.find((c) => c.id === bm.categoryId);
             return (
               <div
                 key={bm.id}
-                className={`p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border transition-all space-y-2.5 ${
+                className={`p-3.5 rounded-2xl bg-white dark:bg-zinc-900 border transition-all space-y-2.5 min-h-[136px] flex flex-col justify-between ${
                   selectedIds.includes(bm.id)
                     ? 'border-indigo-450 dark:border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/20 dark:bg-indigo-950/20'
                     : 'border-zinc-200/80 dark:border-zinc-800/80 shadow-xs'
@@ -807,7 +824,7 @@ export const BookmarkManager: React.FC = () => {
 
                     {/* Rank Capsule Badge */}
                     <span className="shrink-0 text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 mt-0.5 shadow-2xs" title="排位序号">
-                      #{bm.sortOrder || index + 1}
+                      #{bm.sortOrder || globalIndex + 1}
                     </span>
 
                     {/* Favicon */}
@@ -859,8 +876,8 @@ export const BookmarkManager: React.FC = () => {
                   </a>
                 </div>
 
-                {/* Middle Row: Category Pill & Tags */}
-                <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                {/* Middle Row: Category Pill & Tags (保持最小高度保证卡片大小统一) */}
+                <div className="flex items-center gap-1.5 flex-wrap text-xs min-h-[24px]">
                   {/* Category Pill with Icon */}
                   <button
                     type="button"
@@ -893,8 +910,8 @@ export const BookmarkManager: React.FC = () => {
                   {/* 排位上下移胶囊组 */}
                   <div className="inline-flex items-center rounded-full bg-zinc-100/90 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-0.5 shadow-2xs">
                     <button
-                      onClick={() => moveBookmark(index, 'up')}
-                      disabled={index === 0}
+                      onClick={() => moveBookmark(globalIndex, 'up')}
+                      disabled={globalIndex === 0}
                       title="上移排位"
                       className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                     >
@@ -903,8 +920,8 @@ export const BookmarkManager: React.FC = () => {
                     </button>
                     <div className="w-px h-3 bg-zinc-300 dark:bg-zinc-700 mx-0.5" />
                     <button
-                      onClick={() => moveBookmark(index, 'down')}
-                      disabled={index === filtered.length - 1}
+                      onClick={() => moveBookmark(globalIndex, 'down')}
+                      disabled={globalIndex === filtered.length - 1}
                       title="下移排位"
                       className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-white dark:hover:bg-zinc-700 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
                     >
@@ -1006,7 +1023,8 @@ export const BookmarkManager: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filtered.map((bm, index) => {
+                paginatedBookmarks.map((bm, pageIndex) => {
+                  const globalIndex = (currentPage - 1) * pageSize + pageIndex;
                   const category = categories.find((c) => c.id === bm.categoryId);
                   return (
                     <tr
@@ -1029,20 +1047,20 @@ export const BookmarkManager: React.FC = () => {
                       <td className="py-3.5 px-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1">
                           <span className="font-mono text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                            #{bm.sortOrder || index + 1}
+                            #{bm.sortOrder || globalIndex + 1}
                           </span>
                           <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => moveBookmark(index, 'up')}
-                              disabled={index === 0}
+                              onClick={() => moveBookmark(globalIndex, 'up')}
+                              disabled={globalIndex === 0}
                               title="上移排位"
                               className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 cursor-pointer p-0.5"
                             >
                               <ArrowUp className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => moveBookmark(index, 'down')}
-                              disabled={index === filtered.length - 1}
+                              onClick={() => moveBookmark(globalIndex, 'down')}
+                              disabled={globalIndex === filtered.length - 1}
                               title="下移排位"
                               className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 cursor-pointer p-0.5"
                             >
@@ -1204,6 +1222,79 @@ export const BookmarkManager: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* 统一分页控制栏 (移动端与桌面端通用，保证切换不同分类时页面大小规范统一) */}
+      {filtered.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 px-1 text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="flex items-center gap-2">
+            <span>共 <strong className="font-semibold text-zinc-800 dark:text-zinc-200">{filtered.length}</strong> 条书签</span>
+            <span>·</span>
+            <span>第 <strong className="font-semibold text-zinc-800 dark:text-zinc-200">{currentPage}</strong> / {totalPages} 页</span>
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="hidden sm:inline">每页</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 rounded-lg bg-white dark:bg-zinc-850 border border-zinc-200 dark:border-zinc-750 text-xs text-zinc-700 dark:text-zinc-300 cursor-pointer shadow-2xs"
+              >
+                <option value={10}>10 条/页</option>
+                <option value={20}>20 条/页</option>
+                <option value={50}>50 条/页</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs font-medium cursor-pointer"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              <span>上一页</span>
+            </button>
+
+            {/* 页码速选胶囊 */}
+            <div className="flex items-center gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum = i + 1;
+                if (totalPages > 5 && currentPage > 3) {
+                  pageNum = Math.min(totalPages, currentPage - 2 + i);
+                }
+                const isActive = pageNum === currentPage;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`w-7 h-7 rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200/60 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors shadow-2xs font-medium cursor-pointer"
+            >
+              <span>下一页</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Modal */}
       {isModalOpen && (

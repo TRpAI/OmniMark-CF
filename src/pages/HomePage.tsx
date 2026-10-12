@@ -1,6 +1,6 @@
 import React from 'react';
 import { SearchBar } from '../components/SearchBar';
-import { CategoryTabs } from '../features/categories/components/CategoryTabs';
+import { MobileCategoryDrawer } from '../features/categories/components/MobileCategoryDrawer';
 import { CategorySidebar } from '../features/categories/components/CategorySidebar';
 import { AnnouncementBanner } from '../components/AnnouncementBanner';
 import { BookmarkGrid } from '../features/bookmarks/components/BookmarkGrid';
@@ -49,8 +49,8 @@ export const HomePage: React.FC = () => {
         {/* Search Engine & Filter Bar (Displayed for bookmarks AND site-feed) */}
         {(!activePageId || activePageId === 'site-feed') && <SearchBar />}
 
-        {/* Category & Custom Page Navigation (移动端与平板胶囊横向滑动) */}
-        <CategoryTabs />
+        {/* Category Drawer for mobile screens (drawer popup when clicking left floating button) */}
+        <MobileCategoryDrawer />
 
         {/* Dynamic Content: Site Feed OR Custom Page OR Bookmarks Grid */}
         <div className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pb-6">
